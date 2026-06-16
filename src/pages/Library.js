@@ -1,0 +1,194 @@
+import { ChevronDown, LockKeyhole, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import AppShell from "../components/layout/AppShell";
+import Footer from "../components/layout/Footer";
+import {
+  librarySections,
+  librarySortOptions,
+  libraryTabs,
+} from "../data/libraryData";
+
+const statusOrder = {
+  expiring: 0,
+  active: 1,
+  expired: 2,
+};
+
+function Library() {
+  const [activeTab, setActiveTab] = useState("all");
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("recent");
+
+  const visibleSections = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const sectionIds = getSectionIdsForTab(activeTab);
+
+    return sectionIds
+      .map((sectionId) => {
+        const section = librarySections.find((item) => item.id === sectionId);
+        const items = section.items
+          .filter((item) =>
+            normalizedQuery ? item.title.toLowerCase().includes(normalizedQuery) : true
+          )
+          .sort((firstItem, secondItem) => sortLibraryItems(firstItem, secondItem, sortBy));
+
+        return { ...section, items };
+      })
+      .filter((section) => section.items.length > 0);
+  }, [activeTab, query, sortBy]);
+
+  const hasResults = visibleSections.length > 0;
+
+  return (
+    <AppShell>
+      <main className="library-page">
+        <section className="library-hero" aria-labelledby="library-title">
+          <h1 id="library-title">My Library</h1>
+          <p>Movies and shows you've purchased. Access them anytime, anywhere.</p>
+        </section>
+
+        <section className="library-controls" aria-label="Library controls">
+          <div className="library-tabs" role="tablist" aria-label="Library filters">
+            {libraryTabs.map((tab) => (
+              <button
+                aria-selected={activeTab === tab.id}
+                className={activeTab === tab.id ? "is-active" : undefined}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                type="button"
+              >
+                {tab.id === "all" ? tab.label : `${tab.label} (${tab.count})`}
+              </button>
+            ))}
+          </div>
+
+          <div className="library-toolbar">
+            <label className="library-search">
+              <span className="sr-only">Search in my library</span>
+              <input
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search in my library..."
+                type="search"
+                value={query}
+              />
+              <Search aria-hidden="true" size={21} strokeWidth={1.8} />
+            </label>
+
+            <label className="library-sort">
+              <span>Sort by:</span>
+              <select
+                aria-label="Sort library"
+                onChange={(event) => setSortBy(event.target.value)}
+                value={sortBy}
+              >
+                {librarySortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown aria-hidden="true" size={18} strokeWidth={1.9} />
+            </label>
+          </div>
+        </section>
+
+        {hasResults ? (
+          visibleSections.map((section) => (
+            <LibrarySection section={section} key={section.id} variant={section.id} />
+          ))
+        ) : (
+          <div className="library-empty">
+            <strong>No titles found</strong>
+            <p>Try a different search or switch to another library tab.</p>
+          </div>
+        )}
+      </main>
+      <Footer />
+    </AppShell>
+  );
+}
+
+function getSectionIdsForTab(activeTab) {
+  if (activeTab === "all") {
+    return librarySections.map((section) => section.id);
+  }
+
+  if (activeTab === "active") {
+    return ["active", "expiring"];
+  }
+
+  return [activeTab];
+}
+
+function sortLibraryItems(firstItem, secondItem, sortBy) {
+  if (sortBy === "title") {
+    return firstItem.title.localeCompare(secondItem.title);
+  }
+
+  if (sortBy === "expiring") {
+    return statusOrder[firstItem.status] - statusOrder[secondItem.status];
+  }
+
+  return new Date(secondItem.purchasedAt) - new Date(firstItem.purchasedAt);
+}
+
+function LibrarySection({ section, variant }) {
+  return (
+    <section className="library-section" aria-labelledby={`${section.id}-title`}>
+      <div className="library-section__heading">
+        <h2 id={`${section.id}-title`}>
+          {section.title} ({section.count})
+        </h2>
+        <p>{section.description}</p>
+      </div>
+
+      <div className={`library-grid library-grid--${variant}`}>
+        {section.items.map((item) => (
+          <LibraryMovieCard item={item} key={item.id} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LibraryMovieCard({ item }) {
+  const isExpired = item.status === "expired";
+
+  return (
+    <article className={`library-card library-card--${item.status}`}>
+      <div className="library-card__media">
+        <img src={item.image} alt="" aria-hidden="true" />
+        <span className="library-card__shade" />
+        <Link
+          className="library-card__tap-target"
+          to={`/movies/${item.slug}${isExpired ? "" : "?watch=resume"}`}
+          aria-label={`${isExpired ? "View" : "Resume"} ${item.title}`}
+        />
+        {isExpired ? (
+          <span className="library-card__lock" aria-hidden="true">
+            <LockKeyhole size={20} strokeWidth={1.9} />
+          </span>
+        ) : null}
+        <span className="library-card__badge">{item.statusLabel}</span>
+        <span className="library-card__content">
+          <strong>{item.title}</strong>
+          <small>{item.timeLabel}</small>
+        </span>
+        {isExpired ? (
+          <Link className="library-card__action" to={`/movies/${item.slug}?purchase=true`}>
+            Watch Again $0.99
+          </Link>
+        ) : null}
+        {!isExpired ? (
+          <span className="library-card__progress" aria-hidden="true">
+            <span style={{ width: `${item.progress}%` }} />
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+export default Library;

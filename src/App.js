@@ -1,24 +1,76 @@
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AllMovies from "./pages/AllMovies";
+import AuthPage from "./pages/AuthPage";
+import Genres from "./pages/Genres";
+import Home from "./pages/Home";
+import Languages from "./pages/Languages";
+import Library from "./pages/Library";
+import MovieDetails from "./pages/MovieDetails";
+import OtpPage from "./pages/OtpPage";
+import PaymentDetails from "./pages/PaymentDetails";
+import PlaceholderPage from "./pages/PlaceholderPage";
+import Profile from "./pages/Profile";
+import "./styles/app.css";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/genres" element={<Genres />} />
+        <Route path="/genres/:genreSlug" element={<Genres />} />
+        <Route path="/languages" element={<Languages />} />
+        <Route path="/languages/:languageSlug" element={<Languages />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route
+          path="/account-settings"
+          element={<PlaceholderPage title="Account Settings" />}
+        />
+        <Route
+          path="/payment-details"
+          element={<PaymentDetails />}
+        />
+        <Route path="/favorites" element={<PlaceholderPage title="Favorites" />} />
+        <Route path="/watchlist" element={<PlaceholderPage title="Watchlist" />} />
+        <Route path="/devices" element={<PlaceholderPage title="Devices" />} />
+        <Route
+          path="/purchase-history"
+          element={<PlaceholderPage title="Purchase History" />}
+        />
+        <Route
+          path="/parental-controls"
+          element={<PlaceholderPage title="Parental Controls" />}
+        />
+        <Route path="/playback" element={<PlaceholderPage title="Playback" />} />
+        <Route
+          path="/subtitles-audio"
+          element={<PlaceholderPage title="Subtitles & Audio" />}
+        />
+        <Route
+          path="/notifications"
+          element={<PlaceholderPage title="Notifications" />}
+        />
+
+        <Route
+          path="/support"
+          element={<PlaceholderPage title="Help & Support" />}
+        />
+        <Route
+          path="/contact-us"
+          element={<PlaceholderPage title="Contact Us" />}
+        />
+        <Route path="/search" element={<PlaceholderPage title="Search" />} />
+        <Route path="/signin" element={<AuthPage />} />
+        <Route path="/signup" element={<AuthPage />} />
+        <Route path="/otp" element={<OtpPage />} />
+        <Route path="/movies" element={<AllMovies />} />
+        <Route path="/movies/:slug" element={<MovieDetails />} />
+        <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

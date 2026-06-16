@@ -1,0 +1,155 @@
+import { Link } from "react-router-dom";
+import starIcon from "../../assets/icons/ic_star.png";
+
+const genreDescriptions = {
+  Action:
+    "High-stakes action, bold choices, and dangerous alliances collide across the city.",
+  Comedy:
+    "Family drama, sharp humor, and unexpected chaos turn one ordinary day upside down.",
+  Drama:
+    "Secrets, loyalty, and ambition collide as one family fights for love and legacy.",
+  Epic:
+    "Power, tradition, and destiny meet in a sweeping story of courage and sacrifice.",
+  Horror:
+    "A quiet night turns unsettling when old stories come alive and no one feels safe.",
+  Romance:
+    "Love is tested by family pressure, buried secrets, and the cost of choosing forever.",
+};
+
+function MoviePosterCard({
+  access,
+  captionMetaItems,
+  metaItems,
+  movie,
+  showMeta = true,
+  showTitle = false,
+}) {
+  const detailsPath = `/movies/${movie.slug}`;
+  const watchPath = `${detailsPath}?watch=now`;
+  const trailerPath = `${detailsPath}?trailer=true`;
+  const description =
+    movie.description ||
+    genreDescriptions[movie.genre] ||
+    "A gripping African story full of emotion, tension, and unforgettable characters.";
+
+  return (
+    <article className="poster-card">
+      <div className="poster-card__image">
+        <img src={movie.poster} alt={movie.title} />
+
+        {access ? (
+          <span
+            className={`poster-card__access-badge poster-card__access-badge--${access.status}`}
+          >
+            {access.statusLabel}
+          </span>
+        ) : null}
+
+        <span className="poster-card__bottom-glow" aria-hidden="true" />
+
+        <Link
+          className="poster-card__tap-target"
+          to={detailsPath}
+          aria-label={`View details for ${movie.title}`}
+        />
+
+        <span className="poster-card__scrim" aria-hidden="true" />
+
+        <div className="poster-card__overlay">
+          <div className="poster-card__eyebrow">
+            <span className="poster-card__maturity">{movie.maturityRating}</span>
+            <span>{movie.year}</span>
+            <span>{movie.genre}</span>
+          </div>
+
+          <h3>{movie.title}</h3>
+          <p>{description}</p>
+
+          {access ? (
+            <div className="poster-card__overlay-actions poster-card__overlay-actions--single">
+              <Link
+                className="poster-card__action poster-card__action--primary"
+                to={`${detailsPath}?watch=resume`}
+              >
+                Resume
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="poster-card__overlay-actions">
+                <Link
+                  className="poster-card__action poster-card__action--primary"
+                  to={watchPath}
+                >
+                  Watch Now
+                </Link>
+                <Link
+                  className="poster-card__action poster-card__action--ghost"
+                  to={trailerPath}
+                >
+                  Trailer
+                </Link>
+              </div>
+
+              <Link className="poster-card__details" to={detailsPath}>
+                Explore Story
+              </Link>
+            </>
+          )}
+        </div>
+
+        {access?.timeLabel ? (
+          <span className="poster-card__watch-status">
+            <small>{access.timeLabel}</small>
+            <span>
+              <span style={{ width: `${access.progress}%` }} />
+            </span>
+          </span>
+        ) : null}
+      </div>
+
+      {showTitle ? (
+        <div className="poster-card__caption">
+          <h3>{movie.title}</h3>
+          <div className="poster-card__meta poster-card__meta--caption">
+            {(captionMetaItems || [movie.year, movie.duration]).map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </div>
+      ) : showMeta ? (
+        <div className="poster-card__meta">
+          {(metaItems || [
+            {
+              className: "poster-card__maturity",
+              label: movie.maturityRating,
+            },
+            movie.genre,
+            movie.duration,
+          ]).map((item) => renderMetaItem(item))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function renderMetaItem(item) {
+  if (!item) {
+    return null;
+  }
+
+  if (typeof item === "string" || typeof item === "number") {
+    return <span key={item}>{item}</span>;
+  }
+
+  return (
+    <span className={item.className} key={`${item.type || "meta"}-${item.label}`}>
+      {item.type === "rating" ? (
+        <img src={starIcon} alt="" aria-hidden="true" />
+      ) : null}
+      {item.label}
+    </span>
+  );
+}
+
+export default MoviePosterCard;
