@@ -6,13 +6,14 @@ import starIcon from "../../assets/icons/ic_star.png";
 
 function HeroDetails({ movie, isLive = false }) {
   const detailsPath = `/movies/${movie.slug}`;
+  const eyebrow = movie.releaseType || movie.eyebrow;
 
   return (
     <div
       className="hero-banner__content"
       aria-live={isLive ? "polite" : undefined}
     >
-      <p className="hero-banner__eyebrow">{movie.eyebrow}</p>
+      {eyebrow ? <p className="hero-banner__eyebrow">{eyebrow}</p> : null}
       <h1>{movie.title}</h1>
 
       <div className="hero-banner__meta" aria-label="Movie metadata">

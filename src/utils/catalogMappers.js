@@ -135,9 +135,9 @@ export function mapHomeData(rawHome = {}) {
 }
 
 function buildHomeHero(slides, longevity) {
-  const normalizedSlides = slides.map((movie, index) => ({
+  const normalizedSlides = slides.map((movie) => ({
     ...movie,
-    eyebrow: index === 0 ? "Trending Now" : movie.releaseType || "Featured",
+    eyebrow: movie.releaseType || "Featured",
     poster: movie.banner || movie.poster,
   }));
   const firstMovie = normalizedSlides[0] || null;
@@ -153,6 +153,7 @@ function buildHomeHero(slides, longevity) {
         ? {
             ...firstMovie,
             videoSrc: firstMovie.videoUrl,
+            trailerUrl: firstMovie.trailerUrl,
           }
         : null,
     },
