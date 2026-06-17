@@ -8,6 +8,7 @@ import {
   UserRound,
 } from "lucide-react";
 import logo from "../../assets/images/img_logo.png";
+import defaultAvatar from "../../assets/images/img_profile.png";
 import searchIcon from "../../assets/icons/ic_search.png";
 import IconButton from "../ui/IconButton";
 
@@ -34,16 +35,22 @@ const profileMenuItems = [
   },
 ];
 
-function Header({ currentUser }) {
+function Header({ currentUser, onLogout }) {
   const location = useLocation();
   const profileMenuRef = useRef(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isAuthenticated = Boolean(currentUser);
   const visibleNavItems = isAuthenticated ? authenticatedNavItems : navItems;
+  const userName = currentUser?.name || currentUser?.username || "User";
+  const userEmail = currentUser?.email || "";
+  const userAvatar =
+    currentUser?.avatar || currentUser?.profileURL || defaultAvatar;
 
   const isNavItemActive = (to, isActive) => {
     if (to === "/") {
-      return location.pathname === "/" || location.pathname.startsWith("/movies");
+      return (
+        location.pathname === "/" || location.pathname.startsWith("/movies")
+      );
     }
 
     return isActive;
@@ -115,18 +122,18 @@ function Header({ currentUser }) {
                 aria-haspopup="menu"
                 onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
               >
-                <img src={currentUser.avatar} alt="" aria-hidden="true" />
-                <span>{currentUser.name}</span>
+                <img src={userAvatar} alt="" aria-hidden="true" />
+                <span>{userName}</span>
                 <span className="profile-menu__chevron" aria-hidden="true" />
               </button>
 
               {isProfileMenuOpen ? (
                 <div className="profile-dropdown" role="menu">
                   <div className="profile-dropdown__summary">
-                    <img src={currentUser.avatar} alt="" aria-hidden="true" />
+                    <img src={userAvatar} alt="" aria-hidden="true" />
                     <span>
-                      <strong>{currentUser.name}</strong>
-                      <small>{currentUser.email}</small>
+                      <strong>{userName}</strong>
+                      <small>{userEmail}</small>
                     </span>
                   </div>
 
@@ -157,6 +164,7 @@ function Header({ currentUser }) {
                       className="profile-dropdown__logout"
                       type="button"
                       role="menuitem"
+                      onClick={onLogout}
                     >
                       <LogOut aria-hidden="true" size={19} strokeWidth={1.9} />
                       <span>Log Out</span>
@@ -167,7 +175,7 @@ function Header({ currentUser }) {
             </div>
           ) : (
             <Link className="sign-in-button" to="/signin">
-              Sign In
+              GET STARTED
             </Link>
           )}
         </div>

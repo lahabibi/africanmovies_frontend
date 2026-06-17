@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config/env";
-import { getAuthToken } from "./authToken";
+import { getAuthToken, getDeviceId } from "./authToken";
 
 export class ApiError extends Error {
   constructor(message, { data, status } = {}) {
@@ -26,9 +26,14 @@ export async function apiClient(endpoint, options = {}) {
   }
 
   const token = getAuthToken();
+  const deviceId = getDeviceId();
 
-  if (requireAuth && token && !requestHeaders.has("Authorization")) {
-    requestHeaders.set("Authorization", token);
+  if (requireAuth && token && !requestHeaders.has("x-auth-token")) {
+    requestHeaders.set("x-auth-token", token);
+  }
+
+  if (requireAuth && deviceId && !requestHeaders.has("x-device-id")) {
+    requestHeaders.set("x-device-id", deviceId);
   }
 
   const response = await fetch(buildApiUrl(endpoint), {

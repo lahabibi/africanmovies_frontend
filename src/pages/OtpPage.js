@@ -1,10 +1,11 @@
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import mailIcon from "../assets/icons/ic_mail.png";
 import mailOkIcon from "../assets/icons/ic_mail_ok.png";
 import securityIcon from "../assets/icons/ic_security.png";
 import AuthStoryPanel from "../components/auth/AuthStoryPanel";
+import { useRequestOtp, useVerifyOtp } from "../hooks/useAuth";
 
 const OTP_LENGTH = 6;
 const DEFAULT_EMAIL = "john.doe@email.com";
@@ -22,7 +23,32 @@ function OtpPage() {
   const inputRefs = useRef([]);
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(""));
   const [secondsLeft, setSecondsLeft] = useState(45);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [lastSubmittedCode, setLastSubmittedCode] = useState("");
+  const requestOtpMutation = useRequestOtp();
+  const verifyOtpMutation = useVerifyOtp();
   const email = location.state?.email || DEFAULT_EMAIL;
+  const otpCode = digits.join("");
+  const isCodeComplete = digits.every(Boolean);
+
+  const submitOtp = useCallback(
+    (code) => {
+      setErrorMessage("");
+      setLastSubmittedCode(code);
+      verifyOtpMutation.mutate(
+        { email, otp: code },
+        {
+          onSuccess: () => {
+            navigate("/", { replace: true });
+          },
+          onError: (error) => {
+            setErrorMessage(error.message);
+          },
+        },
+      );
+    },
+    [email, navigate, verifyOtpMutation],
+  );
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -35,6 +61,24 @@ function OtpPage() {
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!isCodeComplete || verifyOtpMutation.isPending) {
+      return;
+    }
+
+    if (otpCode === lastSubmittedCode) {
+      return;
+    }
+
+    submitOtp(otpCode);
+  }, [
+    isCodeComplete,
+    lastSubmittedCode,
+    otpCode,
+    submitOtp,
+    verifyOtpMutation.isPending,
+  ]);
 
   const focusInput = (index) => {
     window.requestAnimationFrame(() => {
@@ -67,6 +111,7 @@ function OtpPage() {
 
   const handleChange = (event, index) => {
     const cleanValue = event.target.value.replace(/\D/g, "");
+    setErrorMessage("");
 
     if (cleanValue.length > 1) {
       applyDigits(cleanValue, index);
@@ -108,6 +153,13 @@ function OtpPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (!isCodeComplete) {
+      setErrorMessage("Enter the 6-digit code from your email.");
+      return;
+    }
+
+    submitOtp(otpCode);
   };
 
   const handleBack = () => {
@@ -120,9 +172,18 @@ function OtpPage() {
   };
 
   const handleResendCode = () => {
-    setDigits(Array(OTP_LENGTH).fill(""));
-    setSecondsLeft(45);
-    focusInput(0);
+    setErrorMessage("");
+    requestOtpMutation.mutate(email, {
+      onSuccess: () => {
+        setDigits(Array(OTP_LENGTH).fill(""));
+        setLastSubmittedCode("");
+        setSecondsLeft(45);
+        focusInput(0);
+      },
+      onError: (error) => {
+        setErrorMessage(error.message);
+      },
+    });
   };
 
   return (
@@ -165,6 +226,7 @@ function OtpPage() {
                 {digits.map((digit, index) => (
                   <input
                     aria-label={`Digit ${index + 1} of verification code`}
+                    aria-invalid={Boolean(errorMessage)}
                     autoComplete={index === 0 ? "one-time-code" : "off"}
                     className="otp-input"
                     inputMode="numeric"
@@ -183,16 +245,26 @@ function OtpPage() {
                   />
                 ))}
               </div>
+
+              {verifyOtpMutation.isPending ? (
+                <p className="otp-form__status">Verifying code...</p>
+              ) : null}
+
+              {errorMessage ? (
+                <p className="otp-form__error" role="alert">
+                  {errorMessage}
+                </p>
+              ) : null}
             </form>
 
             <p className="otp-resend">
               <span>Didn't receive the code?</span>
               <button
-                disabled={secondsLeft > 0}
+                disabled={secondsLeft > 0 || requestOtpMutation.isPending}
                 onClick={handleResendCode}
                 type="button"
               >
-                Resend code
+                {requestOtpMutation.isPending ? "Sending..." : "Resend code"}
               </button>
               {secondsLeft > 0 && <span>({formatCountdown(secondsLeft)})</span>}
             </p>

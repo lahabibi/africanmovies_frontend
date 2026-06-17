@@ -5,8 +5,10 @@ import {
   MonitorSmartphone,
   Send,
 } from "lucide-react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AuthStoryPanel from "../components/auth/AuthStoryPanel";
+import { useRequestOtp } from "../hooks/useAuth";
 
 const trustItems = [
   { icon: LockKeyhole, label: "Secure & Private" },
@@ -23,12 +25,27 @@ function AuthPage() {
     ? "Start watching African stories today"
     : "Sign in to your account";
   const initialEmail = location.state?.email || "";
+  const [email, setEmail] = useState(initialEmail);
+  const [errorMessage, setErrorMessage] = useState("");
+  const requestOtpMutation = useRequestOtp();
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") || "john.doe@email.com").trim();
+    const nextEmail = email.trim();
 
-    navigate("/otp", { state: { email } });
+    if (!nextEmail) {
+      return;
+    }
+
+    setErrorMessage("");
+    requestOtpMutation.mutate(nextEmail, {
+      onSuccess: () => {
+        navigate("/otp", { state: { email: nextEmail } });
+      },
+      onError: (error) => {
+        setErrorMessage(error.message);
+      },
+    });
   };
 
   return (
@@ -56,15 +73,24 @@ function AuthPage() {
               <Mail aria-hidden="true" size={23} strokeWidth={1.8} />
               <input
                 id="auth-email"
-                defaultValue={initialEmail}
                 name="email"
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="Enter your email address"
                 required
                 type="email"
+                value={email}
               />
             </div>
 
-            <button type="submit">Continue</button>
+            {errorMessage ? (
+              <p className="auth-form__error" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            <button disabled={requestOtpMutation.isPending} type="submit">
+              {requestOtpMutation.isPending ? "Sending code..." : "Continue"}
+            </button>
           </form>
 
           <div className="auth-note">
