@@ -141,7 +141,7 @@ function buildHomeHero(slides, longevity) {
     poster: movie.banner || movie.poster,
   }));
   const firstMovie = normalizedSlides[0] || null;
-  const mode = longevity?.slidesAsBanner === false ? "video" : "carousel";
+  const mode = longevity?.slidesAsBanner === true ? "carousel" : "video";
 
   return {
     mode,

@@ -5,6 +5,8 @@ import playTv from "../../assets/icons/ic_play_tv.png";
 import starIcon from "../../assets/icons/ic_star.png";
 
 function HeroDetails({ movie, isLive = false }) {
+  const detailsPath = `/movies/${movie.slug}`;
+
   return (
     <div
       className="hero-banner__content"
@@ -27,10 +29,15 @@ function HeroDetails({ movie, isLive = false }) {
         <span className="hero-banner__maturity">{movie.maturityRating}</span>
       </div>
 
-      <p className="hero-banner__description">{movie.description}</p>
+      <div className="hero-banner__synopsis">
+        <p className="hero-banner__description">{movie.description}</p>
+        <Link className="hero-banner__read-more" to={detailsPath}>
+          Read More
+        </Link>
+      </div>
 
       <div className="hero-banner__actions">
-        <Link className="button button--primary" to={`/movies/${movie.slug}`}>
+        <Link className="button button--primary" to={detailsPath}>
           <img src={playIcon} alt="" aria-hidden="true" />
           <span>Watch for ${movie.price.toFixed(2)}</span>
         </Link>

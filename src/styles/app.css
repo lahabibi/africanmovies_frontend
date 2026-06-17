@@ -549,12 +549,36 @@
   display: none;
 }
 
-.hero-banner__description {
+.hero-banner__synopsis {
+  display: grid;
+  gap: 7px;
   max-width: 382px;
-  margin: 15px 0 0;
+  margin-top: 15px;
+}
+
+.hero-banner__description {
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 382px;
+  margin: 0;
   color: rgba(255, 255, 255, 0.86);
   font-size: 16px;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.hero-banner__read-more {
+  width: max-content;
+  color: var(--color-blue);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hero-banner__read-more:hover,
+.hero-banner__read-more:focus-visible {
+  color: var(--color-text);
 }
 
 .hero-banner__actions {
