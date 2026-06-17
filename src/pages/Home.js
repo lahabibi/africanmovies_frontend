@@ -42,7 +42,7 @@ function Home() {
             ))}
           </ContentRow>
 
-          <ContentRow title="Trending" viewAllTo="/movies?section=trending">
+          <ContentRow title="New Releases" viewAllTo="/movies?section=new-releases">
             {resolvedTrendingMovies.map((movie) => (
               <MoviePosterCard key={movie.id} movie={movie} />
             ))}

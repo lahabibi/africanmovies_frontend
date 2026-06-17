@@ -8,9 +8,9 @@ const pageLabels = {
     title: "All Movies",
     breadcrumb: ["home", "movies"],
   },
-  trending: {
-    title: "Trending",
-    breadcrumb: ["home", "movies", "trending"],
+  newReleases: {
+    title: "New Releases",
+    breadcrumb: ["home", "movies", "new releases"],
   },
 };
 
@@ -59,9 +59,9 @@ export function getMoviesPageConfig(searchParams) {
     };
   }
 
-  if (section === "trending") {
+  if (section === "new-releases" || section === "trending") {
     return {
-      ...pageLabels.trending,
+      ...pageLabels.newReleases,
       filter: { type: "section", value: "trending" },
     };
   }
