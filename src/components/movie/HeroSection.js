@@ -1,8 +1,8 @@
-import HeroCarousel from './HeroCarousel';
-import HeroVideo from './HeroVideo';
+import HeroCarousel from "./HeroCarousel";
+import HeroVideo from "./HeroVideo";
 
 function HeroSection({ hero }) {
-  if (hero.mode === 'video') {
+  if (hero.mode === "video") {
     return <HeroVideo movie={hero.video.movie} />;
   }
 

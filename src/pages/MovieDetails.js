@@ -4,6 +4,7 @@ import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import ContentRow from "../components/movie/ContentRow";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
+import { useMovieDetails } from "../hooks/useCatalog";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
 import languageIcon from "../assets/icons/ic_language.png";
@@ -43,7 +44,9 @@ const aboutFieldOrder = [
 
 function MovieDetails() {
   const { slug } = useParams();
-  const movie = movieDetailsBySlug[slug] || defaultMovieDetail;
+  const { data: apiMovieDetails } = useMovieDetails(slug);
+  const movie =
+    apiMovieDetails?.movie || movieDetailsBySlug[slug] || defaultMovieDetail;
   const heroMovie = movie.heroMovie || { mode: "image", banner: movie.banner };
   const priceLabel = `$${movie.price.toFixed(2)}`;
 
