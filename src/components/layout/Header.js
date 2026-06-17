@@ -38,7 +38,9 @@ const profileMenuItems = [
 function Header({ currentUser, onLogout }) {
   const location = useLocation();
   const profileMenuRef = useRef(null);
+  const logoutCancelRef = useRef(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const isAuthenticated = Boolean(currentUser);
   const visibleNavItems = isAuthenticated ? authenticatedNavItems : navItems;
   const userName = currentUser?.name || currentUser?.username || "User";
@@ -59,6 +61,26 @@ function Header({ currentUser, onLogout }) {
   useEffect(() => {
     setIsProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isLogoutConfirmOpen) {
+      return undefined;
+    }
+
+    logoutCancelRef.current?.focus();
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsLogoutConfirmOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isLogoutConfirmOpen]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) {
@@ -164,7 +186,10 @@ function Header({ currentUser, onLogout }) {
                       className="profile-dropdown__logout"
                       type="button"
                       role="menuitem"
-                      onClick={onLogout}
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setIsLogoutConfirmOpen(true);
+                      }}
                     >
                       <LogOut aria-hidden="true" size={19} strokeWidth={1.9} />
                       <span>Log Out</span>
@@ -180,6 +205,55 @@ function Header({ currentUser, onLogout }) {
           )}
         </div>
       </div>
+
+      {isLogoutConfirmOpen ? (
+        <div
+          className="logout-confirm"
+          onClick={() => setIsLogoutConfirmOpen(false)}
+          role="presentation"
+        >
+          <section
+            aria-labelledby="logout-confirm-title"
+            aria-modal="true"
+            className="logout-confirm__dialog"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <span className="logout-confirm__icon" aria-hidden="true">
+              <LogOut size={23} strokeWidth={2} />
+            </span>
+
+            <div className="logout-confirm__copy">
+              <h2 id="logout-confirm-title">Log out?</h2>
+              <p>
+                You will need to request a new code before watching from this
+                device again.
+              </p>
+            </div>
+
+            <div className="logout-confirm__actions">
+              <button
+                className="logout-confirm__cancel"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                ref={logoutCancelRef}
+                type="button"
+              >
+                Stay Signed In
+              </button>
+              <button
+                className="logout-confirm__submit"
+                onClick={() => {
+                  setIsLogoutConfirmOpen(false);
+                  onLogout?.();
+                }}
+                type="button"
+              >
+                Log Out
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </header>
   );
 }
