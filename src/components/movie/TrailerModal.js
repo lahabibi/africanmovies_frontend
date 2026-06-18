@@ -1,5 +1,6 @@
 import { AlertCircle, LoaderCircle, X } from "lucide-react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function TrailerModal({
   error,
@@ -29,7 +30,7 @@ function TrailerModal({
   const title = movie?.title ? `${movie.title} Trailer` : "Movie Trailer";
   const poster = movie?.poster || movie?.banner;
 
-  return (
+  return createPortal(
     <div
       className="trailer-modal"
       onMouseDown={onClose}
@@ -54,6 +55,7 @@ function TrailerModal({
             onClick={onClose}
             type="button"
           >
+            <span>Close</span>
             <X aria-hidden="true" size={22} strokeWidth={2} />
           </button>
         </div>
@@ -97,7 +99,8 @@ function TrailerModal({
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -66,7 +66,7 @@ function buildSignedCloudflareUrl(accessData) {
 
   const url = new URL(`${CLOUDFLARE_IFRAME_BASE}/${videoId}`);
   url.searchParams.set("token", token);
-  url.searchParams.set("autoplay", "true");
+  applyCloudflarePlayerParams(url);
 
   return url.toString();
 }
@@ -87,11 +87,17 @@ function withCloudflareIframeParams(url) {
 
   try {
     const embedUrl = new URL(url);
-    embedUrl.searchParams.set("autoplay", "true");
+    applyCloudflarePlayerParams(embedUrl);
     return embedUrl.toString();
   } catch {
     return url;
   }
+}
+
+function applyCloudflarePlayerParams(url) {
+  url.searchParams.set("autoplay", "true");
+  url.searchParams.set("controls", "true");
+  url.searchParams.set("preload", "auto");
 }
 
 function isNativeVideoUrl(url) {
