@@ -1,10 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Heart, Play, TvMinimalPlay } from "lucide-react";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import ContentRow from "../components/movie/ContentRow";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { useMovieDetails } from "../hooks/useCatalog";
+import TrailerModal from "../components/movie/TrailerModal";
+import { useMovieDetails, useTrailerAccess } from "../hooks/useCatalog";
+import { resolveTrailerPlaybackSource } from "../utils/trailerPlayback";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
 import languageIcon from "../assets/icons/ic_language.png";
@@ -49,6 +52,46 @@ function MovieDetails() {
     apiMovieDetails?.movie || movieDetailsBySlug[slug] || defaultMovieDetail;
   const heroMovie = movie.heroMovie || { mode: "image", banner: movie.banner };
   const priceLabel = `$${movie.price.toFixed(2)}`;
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const movieId = movie.backendId || movie.id;
+  const canRequestTrailerAccess = isMongoObjectId(movieId);
+  const {
+    data: trailerAccess,
+    error: trailerError,
+    isFetching: isTrailerFetching,
+    refetch: refetchTrailerAccess,
+  } = useTrailerAccess(movieId, { enabled: false });
+  const trailerSource = useMemo(() => {
+    if (trailerAccess) {
+      return resolveTrailerPlaybackSource(trailerAccess, movie);
+    }
+
+    if (!canRequestTrailerAccess || trailerError) {
+      return resolveTrailerPlaybackSource(null, movie);
+    }
+
+    return null;
+  }, [canRequestTrailerAccess, movie, trailerAccess, trailerError]);
+  const isTrailerLoading =
+    isTrailerOpen &&
+    canRequestTrailerAccess &&
+    isTrailerFetching &&
+    !trailerAccess &&
+    !trailerError;
+
+  useEffect(() => {
+    if (isTrailerOpen && canRequestTrailerAccess) {
+      refetchTrailerAccess();
+    }
+  }, [canRequestTrailerAccess, isTrailerOpen, refetchTrailerAccess]);
+
+  const openTrailer = () => {
+    setIsTrailerOpen(true);
+  };
+
+  const closeTrailer = () => {
+    setIsTrailerOpen(false);
+  };
 
   return (
     <AppShell>
@@ -103,30 +146,41 @@ function MovieDetails() {
                 Watch Now {priceLabel}
               </Link>
 
-              <Link
+              <button
                 className="button button--ghost"
-                to={`/movies/${movie.slug}?trailer=true`}
+                onClick={openTrailer}
+                type="button"
               >
                 <TvMinimalPlay aria-hidden="true" size={21} strokeWidth={1.9} />
                 Watch Trailer
-              </Link>
+              </button>
 
               <button className="movie-detail-icon-action" type="button">
                 <span>
                   <Heart aria-hidden="true" size={25} strokeWidth={1.8} />
                 </span>
-                Like
+                Add to Favorite
               </button>
 
               <button className="movie-detail-icon-action" type="button">
                 <span>
-                  <img src={likeIcon} alt="" aria-hidden="true" />
+                  <img src={watchlistIcon} alt="" aria-hidden="true" />
                 </span>
                 Add to Watchlist
               </button>
             </div>
           </div>
         </section>
+
+        {isTrailerOpen ? (
+          <TrailerModal
+            error={trailerError}
+            isLoading={isTrailerLoading}
+            movie={movie}
+            onClose={closeTrailer}
+            source={trailerSource}
+          />
+        ) : null}
 
         <section className="movie-detail-body">
           <div
@@ -208,6 +262,10 @@ function MovieDetails() {
       <Footer />
     </AppShell>
   );
+}
+
+function isMongoObjectId(value) {
+  return /^[a-f0-9]{24}$/i.test(String(value || ""));
 }
 
 function StatBlock({ icon, label, note, value }) {
