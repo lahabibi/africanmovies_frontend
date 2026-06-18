@@ -12,18 +12,32 @@ const footerColumns = [
   {
     title: "Browse",
     links: ["Movies", "Library", "Genres", "Languages"],
+    to: ["/", "/library", "/genres", "/languages"],
   },
   {
     title: "Support",
     links: ["Help Center", "Contact Us", "How It Works", "Device Support"],
+    to: ["help-center", "contact-us", "how-it-works", "device-support"],
   },
   {
     title: "Company",
-    links: ["About Us", "Careers", "Press", "Partners"],
+    links: ["About Us", "Careers", "Contact Us", "Projects"],
+    to: ["about-us", "careers", "contact-us", "projects"],
   },
   {
     title: "Legal",
-    links: ["Terms of Use", "Privacy Policy", "Refund Policy", "Cookie Policy"],
+    links: [
+      "Terms of Use",
+      "Privacy Policy",
+      "Refund Policy",
+      "Terms and Conditions",
+    ],
+    to: [
+      "terms-of-use",
+      "privacy-policy",
+      "refund-policy",
+      "terms-and-conditions",
+    ],
   },
 ];
 
@@ -34,7 +48,36 @@ const socialLinks = [
   { label: "YouTube", icon: youtubeIcon },
 ];
 
+const currencyByRegion = {
+  CI: "XOF",
+  GH: "GHS",
+  KE: "KES",
+  NG: "NGN",
+  SN: "XOF",
+  ZA: "ZAR",
+  US: "USD",
+};
+
+const regionByTimeZone = {
+  "Africa/Abidjan": "CI",
+  "Africa/Accra": "GH",
+  "Africa/Dakar": "SN",
+  "Africa/Johannesburg": "ZA",
+  "Africa/Lagos": "NG",
+  "Africa/Nairobi": "KE",
+  "America/Anchorage": "US",
+  "America/Chicago": "US",
+  "America/Denver": "US",
+  "America/Los_Angeles": "US",
+  "America/New_York": "US",
+  "America/Phoenix": "US",
+  "Pacific/Honolulu": "US",
+};
+
 function Footer() {
+  const currentYear = new Date().getFullYear();
+  const countryLabel = getCountrySelectorLabel();
+
   return (
     <footer className="site-footer">
       <div className="site-footer__main">
@@ -62,8 +105,8 @@ function Footer() {
           {footerColumns.map((column) => (
             <div className="site-footer__column" key={column.title}>
               <h2>{column.title}</h2>
-              {column.links.map((item) => (
-                <Link key={item} to="/">
+              {column.links.map((item, index) => (
+                <Link key={item} to={getFooterLinkTarget(column.to?.[index])}>
                   {item}
                 </Link>
               ))}
@@ -94,7 +137,7 @@ function Footer() {
       </div>
 
       <div className="site-footer__bottom">
-        <p>© 2026 AfricanMovies. All rights reserved.</p>
+        <p>© {currentYear} AfricanMovies. All rights reserved.</p>
         <div className="site-footer__selectors">
           <button type="button">
             <Globe2 aria-hidden="true" size={22} />
@@ -102,13 +145,80 @@ function Footer() {
             <ChevronDown aria-hidden="true" size={16} />
           </button>
           <button type="button">
-            <span>Nigeria (NGN)</span>
+            <span>{countryLabel}</span>
             <ChevronDown aria-hidden="true" size={16} />
           </button>
         </div>
       </div>
     </footer>
   );
+}
+
+function getCountrySelectorLabel() {
+  const locale = getBrowserLocale();
+  const region = getTimeZoneRegion() || getLocaleRegion(locale);
+  const country = getCountryName(region, locale);
+
+  if (!country) {
+    return "Country";
+  }
+
+  const currency = currencyByRegion[region];
+
+  return currency ? `${country} (${currency})` : country;
+}
+
+function getBrowserLocale() {
+  if (typeof navigator === "undefined") {
+    return "en-US";
+  }
+
+  return navigator.languages?.[0] || navigator.language || "en-US";
+}
+
+function getTimeZoneRegion() {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return regionByTimeZone[timeZone] || "";
+  } catch {
+    return "";
+  }
+}
+
+function getLocaleRegion(locale) {
+  try {
+    if (typeof Intl.Locale === "function") {
+      return new Intl.Locale(locale).region || "";
+    }
+  } catch {
+    return "";
+  }
+
+  return locale.split("-")[1]?.toUpperCase() || "";
+}
+
+function getCountryName(region, locale) {
+  if (!region) {
+    return "";
+  }
+
+  try {
+    return new Intl.DisplayNames([locale], { type: "region" }).of(region) || "";
+  } catch {
+    return region;
+  }
+}
+
+function getFooterLinkTarget(to) {
+  if (!to) {
+    return "/";
+  }
+
+  if (to === "/" || to.startsWith("/") || to.startsWith("http")) {
+    return to;
+  }
+
+  return `/${to}`;
 }
 
 export default Footer;
