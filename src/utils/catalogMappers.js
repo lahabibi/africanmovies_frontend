@@ -1,5 +1,6 @@
 const DEFAULT_PRICE = 0.99;
 const DEFAULT_MATURITY_RATING = "16+";
+const CONTINUE_WATCHING_EXPIRING_SOON_MS = 3 * 24 * 60 * 60 * 1000;
 
 export function mapMovie(rawMovie = {}) {
   const id = String(rawMovie._id || rawMovie.id || rawMovie.slug || "");
@@ -209,6 +210,8 @@ function buildContinueWatching(orders, movies) {
         return null;
       }
 
+      const status = getContinueWatchingStatus(order);
+
       return {
         id: `continue-${movie.id}`,
         slug: movie.slug,
@@ -216,12 +219,24 @@ function buildContinueWatching(orders, movies) {
         description: movie.description,
         progress: access.progress,
         purchaseStatus: "paid_active",
+        status,
+        statusLabel: status === "expiring" ? "Expiring Soon" : "",
         subtitle: access.timeLabel || `${movie.duration} left`,
         thumbnail: movie.thumbnail,
         accessExpiresAt: order.expiryDate,
       };
     })
     .filter(Boolean);
+}
+
+function getContinueWatchingStatus(order) {
+  const expiryDate = order?.expiryDate ? new Date(order.expiryDate) : null;
+  const millisecondsLeft = expiryDate ? expiryDate.getTime() - Date.now() : 0;
+
+  return millisecondsLeft > 0 &&
+    millisecondsLeft < CONTINUE_WATCHING_EXPIRING_SOON_MS
+    ? "expiring"
+    : "active";
 }
 
 function mapOrderAccess(order, movie) {

@@ -12,6 +12,11 @@ function ContinueWatchingCard({ item }) {
     <article className="continue-card">
       <div className="continue-card__poster">
         <img src={item.thumbnail} alt="" aria-hidden="true" />
+        {item.status === "expiring" ? (
+          <span className="continue-card__badge">
+            {item.statusLabel || "Expiring Soon"}
+          </span>
+        ) : null}
         <Link
           className="continue-card__tap-target"
           to={resumePath}
