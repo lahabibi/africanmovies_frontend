@@ -83,7 +83,7 @@ function Genres() {
                   week. Stay tuned!
                 </small>
               </span>
-              <Link to={`/movies?genre=${selectedGenre.id}`}>
+              <Link to={`/movies?genre=${encodeURIComponent(selectedGenre.title)}`}>
                 View All {selectedGenre.title}
                 <ChevronRight aria-hidden="true" size={18} strokeWidth={2.2} />
               </Link>

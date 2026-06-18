@@ -85,12 +85,13 @@ export function useMovieUserData(movieId, { enabled = true } = {}) {
   });
 }
 
-export function useMoviesByCategory(category, value) {
+export function useMoviesByCategory(category, value, { enabled = true } = {}) {
   return useQuery({
-    enabled: Boolean(category && value),
+    enabled: Boolean(category && value) && enabled,
     queryFn: async () =>
       (await getMoviesByCategory(category, value)).map(mapMovie),
     queryKey: catalogKeys.moviesByCategory(category, value),
+    staleTime: 2 * 60 * 1000,
   });
 }
 

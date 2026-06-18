@@ -7,7 +7,6 @@ import HeroSection from "../components/movie/HeroSection";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
 import { useHomeCatalog, useLatestMovies } from "../hooks/useCatalog";
 import {
-  genreRows,
   homeHero,
   serviceHighlights,
   trendingMovies,
@@ -28,8 +27,7 @@ function Home() {
     latestMovies?.length > 0
       ? latestMovies
       : trendingMovies;
-  const resolvedGenreRows =
-    homeCatalog?.genreRows?.length > 0 ? homeCatalog.genreRows : genreRows;
+  const resolvedGenreRows = homeCatalog?.genreRows || [];
 
   return (
     <AppShell>
@@ -61,7 +59,7 @@ function Home() {
             <ContentRow
               key={row.id}
               title={row.title}
-              viewAllTo={`/movies?genre=${row.id}`}
+              viewAllTo={`/movies?genre=${encodeURIComponent(row.title)}`}
             >
               {row.movies.map((movie) => (
                 <MoviePosterCard key={movie.id} movie={movie} />

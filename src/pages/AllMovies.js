@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { useLatestMovies } from "../hooks/useCatalog";
+import { useLatestMovies, useMoviesByCategory } from "../hooks/useCatalog";
 import {
   getFilteredMovies,
   getMoviesPageConfig,
@@ -32,9 +32,15 @@ function AllMovies() {
   const isNewReleasesPage =
     pageConfig.filter.type === "section" &&
     pageConfig.filter.value === "new-releases";
+  const isGenrePage = pageConfig.filter.type === "genre";
   const { data: latestMovies } = useLatestMovies(120, {
     enabled: isNewReleasesPage,
   });
+  const { data: genreMovies } = useMoviesByCategory(
+    "genre",
+    pageConfig.filter.value,
+    { enabled: isGenrePage },
+  );
 
   const filteredMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -44,6 +50,11 @@ function AllMovies() {
             ...movie,
             sortOrder: index,
           }))
+        : isGenrePage
+          ? (genreMovies || []).map((movie, index) => ({
+              ...movie,
+              sortOrder: index,
+            }))
         : getFilteredMovies(pageConfig.filter);
 
     return sourceMovies.filter((movie) => {
@@ -56,7 +67,14 @@ function AllMovies() {
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [isNewReleasesPage, latestMovies, pageConfig.filter, query]);
+  }, [
+    genreMovies,
+    isGenrePage,
+    isNewReleasesPage,
+    latestMovies,
+    pageConfig.filter,
+    query,
+  ]);
 
   const sortedMovies = useMemo(
     () => sortMovies(filteredMovies, sortBy),

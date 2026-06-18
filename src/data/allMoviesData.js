@@ -50,7 +50,7 @@ export function getMoviesPageConfig(searchParams) {
   }
 
   if (genreId) {
-    const genreTitle = genreTitleById[genreId];
+    const genreTitle = genreTitleById[genreId] || formatFilterTitle(genreId);
 
     return {
       breadcrumb: ["home", "genre", genreTitle || genreId],
@@ -204,6 +204,19 @@ function fallbackRating(slug) {
     .reduce((total, character) => total + character.charCodeAt(0), 0);
 
   return Number((7 + (sum % 18) / 10).toFixed(1));
+}
+
+function formatFilterTitle(value) {
+  return String(value || "")
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word) =>
+      word
+        ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`
+        : word,
+    )
+    .join(" ");
 }
 
 function slugify(value) {
