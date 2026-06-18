@@ -7,7 +7,6 @@ import HeroSection from "../components/movie/HeroSection";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
 import { useHomeCatalog, useLatestMovies } from "../hooks/useCatalog";
 import {
-  continueWatching,
   genreRows,
   homeHero,
   serviceHighlights,
@@ -20,10 +19,7 @@ function Home() {
   const resolvedHero = homeCatalog?.homeHero?.carousel?.slides?.length
     ? homeCatalog.homeHero
     : homeHero;
-  const resolvedContinueWatching =
-    homeCatalog?.continueWatching?.length > 0
-      ? homeCatalog.continueWatching
-      : continueWatching;
+  const resolvedContinueWatching = homeCatalog?.continueWatching || [];
   const resolvedTrendingMovies =
     latestMovies?.length > 0
       ? latestMovies
@@ -37,11 +33,13 @@ function Home() {
         <HeroSection hero={resolvedHero} />
 
         <div className="home-page__content">
-          <ContentRow title="Continue Watching" viewAllTo="/library">
-            {resolvedContinueWatching.map((item) => (
-              <ContinueWatchingCard key={item.id} item={item} />
-            ))}
-          </ContentRow>
+          {resolvedContinueWatching.length > 0 ? (
+            <ContentRow title="Continue Watching" viewAllTo="/library">
+              {resolvedContinueWatching.map((item) => (
+                <ContinueWatchingCard key={item.id} item={item} />
+              ))}
+            </ContentRow>
+          ) : null}
 
           <ContentRow title="New Releases" viewAllTo="/movies?section=new-releases">
             {resolvedTrendingMovies.map((movie) => (

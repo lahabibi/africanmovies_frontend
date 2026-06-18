@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getAuthToken } from "../api/authToken";
 import {
   getGenre,
   getGenres,
@@ -25,7 +26,7 @@ export const catalogKeys = {
   all: ["catalog"],
   genres: () => [...catalogKeys.all, "genres"],
   genre: (genreId) => [...catalogKeys.genres(), genreId],
-  home: () => [...catalogKeys.all, "home"],
+  home: (authState = "guest") => [...catalogKeys.all, "home", authState],
   latestMovies: (limit) => [...catalogKeys.movies(), "latest", limit],
   languages: () => [...catalogKeys.all, "languages"],
   language: (languageId) => [...catalogKeys.languages(), languageId],
@@ -43,9 +44,11 @@ export const catalogKeys = {
 };
 
 export function useHomeCatalog() {
+  const authState = getAuthToken() ? "auth" : "guest";
+
   return useQuery({
     queryFn: async () => mapHomeData(await getHomeData()),
-    queryKey: catalogKeys.home(),
+    queryKey: catalogKeys.home(authState),
     staleTime: 3 * 60 * 1000,
   });
 }

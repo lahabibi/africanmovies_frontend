@@ -252,13 +252,16 @@ function mapOrderAccess(order, movie) {
 
 function getWatchProgress(order, movie) {
   const currentTime = toNumber(order?.currentTime, 0);
-  const duration = movie?.durationMinutes || 0;
+  const durationSeconds = (movie?.durationMinutes || 0) * 60;
 
-  if (!currentTime || !duration) {
+  if (!currentTime || !durationSeconds) {
     return 0;
   }
 
-  return Math.max(0, Math.min(100, Math.round((currentTime / duration) * 100)));
+  return Math.max(
+    0,
+    Math.min(100, Math.round((currentTime / durationSeconds) * 100)),
+  );
 }
 
 function formatTimeUntil(date) {
