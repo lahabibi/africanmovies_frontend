@@ -1,5 +1,9 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTrailerAccess } from "../../hooks/useCatalog";
+import { resolveTrailerPlaybackSource } from "../../utils/trailerPlayback";
 import starIcon from "../../assets/icons/ic_star.png";
+import TrailerModal from "./TrailerModal";
 
 const genreDescriptions = {
   Action:
@@ -26,110 +30,165 @@ function MoviePosterCard({
 }) {
   const detailsPath = `/movies/${movie.slug}`;
   const watchPath = `${detailsPath}?watch=now`;
-  const trailerPath = `${detailsPath}?trailer=true`;
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const movieId = movie.backendId || movie.id;
+  const canRequestTrailerAccess = isMongoObjectId(movieId);
+  const {
+    data: trailerAccess,
+    error: trailerError,
+    isFetching: isTrailerFetching,
+    refetch: refetchTrailerAccess,
+  } = useTrailerAccess(movieId, { enabled: false });
+  const trailerSource = useMemo(() => {
+    if (trailerAccess) {
+      return resolveTrailerPlaybackSource(trailerAccess, movie);
+    }
+
+    if (!canRequestTrailerAccess || trailerError) {
+      return resolveTrailerPlaybackSource(null, movie);
+    }
+
+    return null;
+  }, [canRequestTrailerAccess, movie, trailerAccess, trailerError]);
+  const isTrailerLoading =
+    isTrailerOpen &&
+    canRequestTrailerAccess &&
+    isTrailerFetching &&
+    !trailerAccess &&
+    !trailerError;
   const description =
     movie.description ||
     genreDescriptions[movie.genre] ||
     "A gripping African story full of emotion, tension, and unforgettable characters.";
 
+  useEffect(() => {
+    if (isTrailerOpen && canRequestTrailerAccess) {
+      refetchTrailerAccess();
+    }
+  }, [canRequestTrailerAccess, isTrailerOpen, refetchTrailerAccess]);
+
+  const openTrailer = () => {
+    setIsTrailerOpen(true);
+  };
+
+  const closeTrailer = () => {
+    setIsTrailerOpen(false);
+  };
+
   return (
-    <article className="poster-card">
-      <div className="poster-card__image">
-        <img src={movie.poster} alt={movie.title} />
-
-        {access ? (
-          <span
-            className={`poster-card__access-badge poster-card__access-badge--${access.status}`}
-          >
-            {access.statusLabel}
-          </span>
-        ) : null}
-
-        <span className="poster-card__bottom-glow" aria-hidden="true" />
-
-        <Link
-          className="poster-card__tap-target"
-          to={detailsPath}
-          aria-label={`View details for ${movie.title}`}
-        />
-
-        <span className="poster-card__scrim" aria-hidden="true" />
-
-        <div className="poster-card__overlay">
-          <div className="poster-card__eyebrow">
-            <span className="poster-card__maturity">{movie.maturityRating}</span>
-            <span>{movie.year}</span>
-            <span>{movie.genre}</span>
-          </div>
-
-          <h3>{movie.title}</h3>
-          <p>{description}</p>
+    <>
+      <article className="poster-card">
+        <div className="poster-card__image">
+          <img src={movie.poster} alt={movie.title} />
 
           {access ? (
-            <div className="poster-card__overlay-actions poster-card__overlay-actions--single">
-              <Link
-                className="poster-card__action poster-card__action--primary"
-                to={`${detailsPath}?watch=resume`}
-              >
-                Resume
-              </Link>
+            <span
+              className={`poster-card__access-badge poster-card__access-badge--${access.status}`}
+            >
+              {access.statusLabel}
+            </span>
+          ) : null}
+
+          <span className="poster-card__bottom-glow" aria-hidden="true" />
+
+          <Link
+            className="poster-card__tap-target"
+            to={detailsPath}
+            aria-label={`View details for ${movie.title}`}
+          />
+
+          <span className="poster-card__scrim" aria-hidden="true" />
+
+          <div className="poster-card__overlay">
+            <div className="poster-card__eyebrow">
+              <span className="poster-card__maturity">
+                {movie.maturityRating}
+              </span>
+              <span>{movie.year}</span>
+              <span>{movie.genre}</span>
             </div>
-          ) : (
-            <>
-              <div className="poster-card__overlay-actions">
+
+            <h3>{movie.title}</h3>
+            <p>{description}</p>
+
+            {access ? (
+              <div className="poster-card__overlay-actions poster-card__overlay-actions--single">
                 <Link
                   className="poster-card__action poster-card__action--primary"
-                  to={watchPath}
+                  to={`${detailsPath}?watch=resume`}
                 >
-                  Watch Now
-                </Link>
-                <Link
-                  className="poster-card__action poster-card__action--ghost"
-                  to={trailerPath}
-                >
-                  Trailer
+                  Resume
                 </Link>
               </div>
+            ) : (
+              <>
+                <div className="poster-card__overlay-actions">
+                  <Link
+                    className="poster-card__action poster-card__action--primary"
+                    to={watchPath}
+                  >
+                    Watch Now
+                  </Link>
+                  <button
+                    aria-label={`Watch trailer for ${movie.title}`}
+                    className="poster-card__action poster-card__action--ghost"
+                    onClick={openTrailer}
+                    type="button"
+                  >
+                    Trailer
+                  </button>
+                </div>
 
-              <Link className="poster-card__details" to={detailsPath}>
-                Explore Story
-              </Link>
-            </>
-          )}
-        </div>
-
-        {access?.timeLabel ? (
-          <span className="poster-card__watch-status">
-            <small>{access.timeLabel}</small>
-            <span>
-              <span style={{ width: `${access.progress}%` }} />
-            </span>
-          </span>
-        ) : null}
-      </div>
-
-      {showTitle ? (
-        <div className="poster-card__caption">
-          <h3>{movie.title}</h3>
-          <div className="poster-card__meta poster-card__meta--caption">
-            {(captionMetaItems || [movie.year, movie.duration]).map((item) => (
-              <span key={item}>{item}</span>
-            ))}
+                <Link className="poster-card__details" to={detailsPath}>
+                  Explore Story
+                </Link>
+              </>
+            )}
           </div>
+
+          {access?.timeLabel ? (
+            <span className="poster-card__watch-status">
+              <small>{access.timeLabel}</small>
+              <span>
+                <span style={{ width: `${access.progress}%` }} />
+              </span>
+            </span>
+          ) : null}
         </div>
-      ) : showMeta ? (
-        <div className="poster-card__meta">
-          {(metaItems || [
-            {
-              className: "poster-card__maturity",
-              label: movie.maturityRating,
-            },
-            movie.genre,
-            movie.duration,
-          ]).map((item) => renderMetaItem(item))}
-        </div>
+
+        {showTitle ? (
+          <div className="poster-card__caption">
+            <h3>{movie.title}</h3>
+            <div className="poster-card__meta poster-card__meta--caption">
+              {(captionMetaItems || [movie.year, movie.duration]).map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </div>
+        ) : showMeta ? (
+          <div className="poster-card__meta">
+            {(metaItems || [
+              {
+                className: "poster-card__maturity",
+                label: movie.maturityRating,
+              },
+              movie.genre,
+              movie.duration,
+            ]).map((item) => renderMetaItem(item))}
+          </div>
+        ) : null}
+      </article>
+
+      {isTrailerOpen ? (
+        <TrailerModal
+          error={trailerError}
+          isLoading={isTrailerLoading}
+          movie={movie}
+          onClose={closeTrailer}
+          source={trailerSource}
+        />
       ) : null}
-    </article>
+    </>
   );
 }
 
@@ -150,6 +209,10 @@ function renderMetaItem(item) {
       {item.label}
     </span>
   );
+}
+
+function isMongoObjectId(value) {
+  return /^[a-f0-9]{24}$/i.test(String(value || ""));
 }
 
 export default MoviePosterCard;
