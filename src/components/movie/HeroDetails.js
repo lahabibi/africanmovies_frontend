@@ -60,8 +60,6 @@ function HeroDetails({ movie, isLive = false }) {
     setTrailerMovie(null);
   };
 
-  console.log("SRC", trailerSource);
-
   return (
     <>
       <div
