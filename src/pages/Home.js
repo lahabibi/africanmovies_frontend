@@ -8,7 +8,7 @@ import MoviePosterCard from "../components/movie/MoviePosterCard";
 import { useHomeCatalog, useLatestMovies } from "../hooks/useCatalog";
 import { serviceHighlights } from "../data/homeData";
 
-const NEW_RELEASES_SKELETON_COUNT = 8;
+const MOVIE_ROW_SKELETON_COUNT = 8;
 
 function Home() {
   const {
@@ -30,15 +30,24 @@ function Home() {
       ? `content-row--continue-sparse content-row--continue-count-${resolvedContinueWatching.length}`
       : "";
   const resolvedGenreRows = homeCatalog?.genreRows || [];
+  const showHeroSkeleton = isHomeLoading && !homeCatalog;
+  const showLatestMoviesSkeleton =
+    isLatestMoviesLoading && latestMovies.length === 0;
+  const showGenreRowsSkeleton = isHomeLoading && resolvedGenreRows.length === 0;
+  const showGenreRowsError = isHomeError && resolvedGenreRows.length === 0;
+  const showGenreRowsEmpty =
+    !isHomeLoading && !isHomeError && resolvedGenreRows.length === 0;
 
   return (
     <AppShell>
       <main className="home-page">
-        {resolvedHero ? (
+        {showHeroSkeleton ? (
+          <HomeHeroSkeleton />
+        ) : resolvedHero ? (
           <HeroSection hero={resolvedHero} />
         ) : (
           <HomeHeroState
-            isLoading={isHomeLoading}
+            variant={isHomeError ? "error" : "empty"}
             message={
               isHomeError
                 ? "We could not load the featured banner right now."
@@ -70,18 +79,11 @@ function Home() {
                 <MoviePosterCard key={movie.id} movie={movie} />
               ))}
             </ContentRow>
-          ) : isLatestMoviesLoading ? (
-            <ContentRow
-              className="content-row--loading"
+          ) : showLatestMoviesSkeleton ? (
+            <HomeMovieRowSkeleton
               title="New Releases"
               viewAllTo="/movies?section=new-releases"
-            >
-              {Array.from({ length: NEW_RELEASES_SKELETON_COUNT }).map(
-                (_, index) => (
-                  <MoviePosterSkeleton key={index} />
-                ),
-              )}
-            </ContentRow>
+            />
           ) : (
             <HomeRowState
               message={
@@ -90,22 +92,45 @@ function Home() {
                   : "New releases will appear here once they are available."
               }
               title="New Releases"
+              variant={isLatestMoviesError ? "error" : "empty"}
             />
           )}
 
           <FeatureStrip items={serviceHighlights} />
 
-          {resolvedGenreRows.map((row) => (
-            <ContentRow
-              key={row.id}
-              title={row.title}
-              viewAllTo={`/movies?genre=${encodeURIComponent(row.title)}`}
-            >
-              {row.movies.map((movie) => (
-                <MoviePosterCard key={movie.id} movie={movie} />
-              ))}
-            </ContentRow>
-          ))}
+          {resolvedGenreRows.length > 0
+            ? resolvedGenreRows.map((row) => (
+                <ContentRow
+                  key={row.id}
+                  title={row.title}
+                  viewAllTo={`/movies?genre=${encodeURIComponent(row.title)}`}
+                >
+                  {row.movies.map((movie) => (
+                    <MoviePosterCard key={movie.id} movie={movie} />
+                  ))}
+                </ContentRow>
+              ))
+            : null}
+
+          {showGenreRowsSkeleton ? (
+            <HomeMovieRowSkeleton title="Movies by Genre" viewAllTo="/movies" />
+          ) : null}
+
+          {showGenreRowsError ? (
+            <HomeRowState
+              message="We could not load genre rows right now."
+              title="Movies by Genre"
+              variant="error"
+            />
+          ) : null}
+
+          {showGenreRowsEmpty ? (
+            <HomeRowState
+              message="Genre rows will appear here once movies are available."
+              title="Movies by Genre"
+              variant="empty"
+            />
+          ) : null}
         </div>
 
         <Footer />
@@ -114,39 +139,93 @@ function Home() {
   );
 }
 
-function HomeHeroState({ isLoading = false, message, title }) {
+function HomeHeroSkeleton() {
+  return (
+    <section
+      className="hero-banner hero-banner--state hero-banner--skeleton"
+      aria-busy="true"
+      aria-label="Loading featured movie"
+    >
+      <div className="hero-banner__state hero-banner__state--skeleton">
+        <span className="hero-banner__state-mark" aria-hidden="true" />
+        <span className="hero-skeleton hero-skeleton--eyebrow" />
+        <span className="hero-skeleton hero-skeleton--title" />
+        <span className="hero-skeleton hero-skeleton--title-short" />
+        <span className="hero-skeleton hero-skeleton--meta" />
+        <span className="hero-skeleton hero-skeleton--copy" />
+        <span className="hero-skeleton hero-skeleton--copy-short" />
+        <div className="hero-skeleton-actions" aria-hidden="true">
+          <span />
+          <span />
+        </div>
+      </div>
+      <div className="hero-skeleton-poster" aria-hidden="true" />
+    </section>
+  );
+}
+
+function HomeHeroState({ message, title, variant = "empty" }) {
   return (
     <section
       className={[
         "hero-banner",
         "hero-banner--state",
-        isLoading ? "hero-banner--loading" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      aria-busy={isLoading}
+        `hero-banner--state-${variant}`,
+      ].join(" ")}
       aria-label="Featured movie"
     >
       <div className="hero-banner__state">
         <span className="hero-banner__state-mark" aria-hidden="true" />
-        <p>{isLoading ? "Loading featured movies" : title}</p>
-        <h1>{isLoading ? "AfricanMovies" : title}</h1>
-        <span>{isLoading ? "Preparing your home banner..." : message}</span>
+        <p>{variant === "error" ? "Unable to load" : "Coming soon"}</p>
+        <h1>{title}</h1>
+        <span>{message}</span>
       </div>
     </section>
   );
 }
 
-function HomeRowState({ message, title }) {
+function HomeMovieRowSkeleton({ title, viewAllTo }) {
+  const titleId = `${title.replace(/\s+/g, "-").toLowerCase()}-loading-title`;
+  const scrollerId = `${titleId}-scroller`;
+
+  return (
+    <section
+      className="content-row content-row--loading"
+      aria-busy="true"
+      aria-labelledby={titleId}
+    >
+      <div className="content-row__header">
+        <h2 id={titleId}>{title}</h2>
+        {viewAllTo ? (
+          <div className="content-row__actions">
+            <span className="home-row-loading-link">View All</span>
+          </div>
+        ) : null}
+      </div>
+      <div className="content-row__scroller" id={scrollerId}>
+        {Array.from({ length: MOVIE_ROW_SKELETON_COUNT }).map((_, index) => (
+          <MoviePosterSkeleton key={index} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HomeRowState({ message, title, variant = "empty" }) {
   const titleId = `${title.replace(/\s+/g, "-").toLowerCase()}-state-title`;
 
   return (
-    <section className="content-row home-row-state" aria-labelledby={titleId}>
+    <section
+      className={`content-row home-row-state home-row-state--${variant}`}
+      aria-labelledby={titleId}
+    >
       <div className="content-row__header">
         <h2 id={titleId}>{title}</h2>
       </div>
       <div className="home-empty-state">
-        <strong>No movies to show</strong>
+        <strong>
+          {variant === "error" ? "Something went wrong" : "No movies to show"}
+        </strong>
         <p>{message}</p>
       </div>
     </section>
