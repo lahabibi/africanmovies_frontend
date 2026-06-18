@@ -20,6 +20,10 @@ function Home() {
     ? homeCatalog.homeHero
     : homeHero;
   const resolvedContinueWatching = homeCatalog?.continueWatching || [];
+  const continueWatchingRowClass =
+    resolvedContinueWatching.length > 0 && resolvedContinueWatching.length < 4
+      ? `content-row--continue-sparse content-row--continue-count-${resolvedContinueWatching.length}`
+      : "";
   const resolvedTrendingMovies =
     latestMovies?.length > 0
       ? latestMovies
@@ -34,7 +38,11 @@ function Home() {
 
         <div className="home-page__content">
           {resolvedContinueWatching.length > 0 ? (
-            <ContentRow title="Continue Watching" viewAllTo="/library">
+            <ContentRow
+              className={continueWatchingRowClass}
+              title="Continue Watching"
+              viewAllTo="/library"
+            >
               {resolvedContinueWatching.map((item) => (
                 <ContinueWatchingCard key={item.id} item={item} />
               ))}

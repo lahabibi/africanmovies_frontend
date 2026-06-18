@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import leftChevron from "../../assets/icons/ic_left_chevron.png";
 import rightChevron from "../../assets/icons/ic_right_chevron.png";
 
-function ContentRow({ title, children, viewAllTo = "/movies" }) {
+function ContentRow({ title, children, className = "", viewAllTo = "/movies" }) {
   const scrollerRef = useRef(null);
   const childCount = Children.count(children);
   const titleId = `${title.replace(/\s+/g, "-").toLowerCase()}-title`;
@@ -84,7 +84,10 @@ function ContentRow({ title, children, viewAllTo = "/movies" }) {
   };
 
   return (
-    <section className="content-row" aria-labelledby={titleId}>
+    <section
+      className={["content-row", className].filter(Boolean).join(" ")}
+      aria-labelledby={titleId}
+    >
       <div className="content-row__header">
         <h2 id={titleId}>{title}</h2>
         <div className="content-row__actions">
