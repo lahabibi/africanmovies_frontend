@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
+import { useLatestMovies } from "../hooks/useCatalog";
 import {
   getFilteredMovies,
   getMoviesPageConfig,
@@ -28,21 +29,34 @@ function AllMovies() {
   const [sortBy, setSortBy] = useState("popular");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loadMoreRef = useRef(null);
+  const isNewReleasesPage =
+    pageConfig.filter.type === "section" &&
+    pageConfig.filter.value === "new-releases";
+  const { data: latestMovies } = useLatestMovies(120, {
+    enabled: isNewReleasesPage,
+  });
 
   const filteredMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const sourceMovies =
+      isNewReleasesPage && latestMovies?.length > 0
+        ? latestMovies.map((movie, index) => ({
+            ...movie,
+            sortOrder: index,
+          }))
+        : getFilteredMovies(pageConfig.filter);
 
-    return getFilteredMovies(pageConfig.filter).filter((movie) => {
+    return sourceMovies.filter((movie) => {
       if (!normalizedQuery) {
         return true;
       }
 
-      return [movie.title, movie.genre, movie.year, ...movie.languages]
+      return [movie.title, movie.genre, movie.year, ...(movie.languages || [])]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [pageConfig.filter, query]);
+  }, [isNewReleasesPage, latestMovies, pageConfig.filter, query]);
 
   const sortedMovies = useMemo(
     () => sortMovies(filteredMovies, sortBy),

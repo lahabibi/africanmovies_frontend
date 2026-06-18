@@ -8,6 +8,10 @@ export function getMovies() {
   return apiClient("/movies");
 }
 
+export function getLatestMovies(limit = 50) {
+  return apiClient(`/movies/data/latest?limit=${encodeURIComponent(limit)}`);
+}
+
 export function getMovieDetails(movieId) {
   return apiClient(`/movies/movie-details/${movieId}`);
 }

@@ -62,7 +62,7 @@ export function getMoviesPageConfig(searchParams) {
   if (section === "new-releases" || section === "trending") {
     return {
       ...pageLabels.newReleases,
-      filter: { type: "section", value: "trending" },
+      filter: { type: "section", value: "new-releases" },
     };
   }
 
@@ -82,6 +82,10 @@ export function getFilteredMovies(filter) {
   }
 
   if (filter.type === "section") {
+    if (filter.value === "new-releases") {
+      return movies.filter((movie) => movie.sections.includes("trending"));
+    }
+
     return movies.filter((movie) => movie.sections.includes(filter.value));
   }
 

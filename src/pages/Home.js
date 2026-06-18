@@ -5,7 +5,7 @@ import ContentRow from "../components/movie/ContentRow";
 import ContinueWatchingCard from "../components/movie/ContinueWatchingCard";
 import HeroSection from "../components/movie/HeroSection";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { useHomeCatalog } from "../hooks/useCatalog";
+import { useHomeCatalog, useLatestMovies } from "../hooks/useCatalog";
 import {
   continueWatching,
   genreRows,
@@ -16,6 +16,7 @@ import {
 
 function Home() {
   const { data: homeCatalog } = useHomeCatalog();
+  const { data: latestMovies } = useLatestMovies(50);
   const resolvedHero = homeCatalog?.homeHero?.carousel?.slides?.length
     ? homeCatalog.homeHero
     : homeHero;
@@ -24,8 +25,8 @@ function Home() {
       ? homeCatalog.continueWatching
       : continueWatching;
   const resolvedTrendingMovies =
-    homeCatalog?.trendingMovies?.length > 0
-      ? homeCatalog.trendingMovies
+    latestMovies?.length > 0
+      ? latestMovies
       : trendingMovies;
   const resolvedGenreRows =
     homeCatalog?.genreRows?.length > 0 ? homeCatalog.genreRows : genreRows;

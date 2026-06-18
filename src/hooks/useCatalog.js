@@ -5,6 +5,7 @@ import {
   getHomeData,
   getLanguage,
   getLanguages,
+  getLatestMovies,
   getMovieDetails,
   getMovieUserData,
   getMovies,
@@ -25,6 +26,7 @@ export const catalogKeys = {
   genres: () => [...catalogKeys.all, "genres"],
   genre: (genreId) => [...catalogKeys.genres(), genreId],
   home: () => [...catalogKeys.all, "home"],
+  latestMovies: (limit) => [...catalogKeys.movies(), "latest", limit],
   languages: () => [...catalogKeys.all, "languages"],
   language: (languageId) => [...catalogKeys.languages(), languageId],
   movie: (movieId) => [...catalogKeys.all, "movie", movieId],
@@ -52,6 +54,15 @@ export function useMovies() {
   return useQuery({
     queryFn: async () => (await getMovies()).map(mapMovie),
     queryKey: catalogKeys.movies(),
+  });
+}
+
+export function useLatestMovies(limit = 50, { enabled = true } = {}) {
+  return useQuery({
+    enabled,
+    queryFn: async () => (await getLatestMovies(limit)).map(mapMovie),
+    queryKey: catalogKeys.latestMovies(limit),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
