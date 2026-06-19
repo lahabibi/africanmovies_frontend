@@ -160,7 +160,7 @@ function buildHomeHero(slides, longevity) {
       movie: firstMovie
         ? {
             ...firstMovie,
-            videoSrc: firstMovie.videoUrl,
+            videoSrc: null,
             trailerUrl: firstMovie.trailerUrl,
           }
         : null,
