@@ -1,4 +1,3 @@
-import { genreMovies, genres } from "./genreData";
 import { genreRows, trendingMovies } from "./homeData";
 import { languageRows } from "./languageData";
 import { librarySearchIndex } from "./libraryData";
@@ -25,11 +24,6 @@ const accessBySlug = librarySearchIndex.reduce((accessMap, item) => {
   return accessMap;
 }, {});
 
-const genreTitleById = genres.reduce((genreMap, genre) => {
-  genreMap[genre.id] = genre.title;
-  return genreMap;
-}, {});
-
 const movies = buildAllMovies();
 
 export const allMovies = movies;
@@ -50,7 +44,7 @@ export function getMoviesPageConfig(searchParams) {
   }
 
   if (genreId) {
-    const genreTitle = genreTitleById[genreId] || formatFilterTitle(genreId);
+    const genreTitle = formatFilterTitle(genreId);
 
     return {
       breadcrumb: ["home", "genre", genreTitle || genreId],
@@ -109,17 +103,6 @@ function buildAllMovies() {
           order: index + 30,
           sections: [row.id],
           source: "home-genre",
-        }),
-      ),
-    ),
-    ...Object.entries(genreMovies).flatMap(([genreId, rowMovies]) =>
-      rowMovies.map((movie, index) =>
-        normalizeMovie(movie, {
-          genre: genreTitleById[genreId],
-          genreId,
-          order: index + 80,
-          sections: [genreId],
-          source: "genre",
         }),
       ),
     ),

@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Film, Grid2X2 } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  Film,
+  Grid2X2,
+  RefreshCw,
+  SearchX,
+} from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
@@ -21,6 +29,7 @@ function Genres() {
     data: genres = [],
     isError: isGenresError,
     isLoading: isGenresLoading,
+    refetch: refetchGenres,
   } = useGenres();
   const sortedGenres = useMemo(() => sortGenresByTitle(genres), [genres]);
   const selectedGenre = sortedGenres.find((genre) => genre.id === genreSlug);
@@ -30,6 +39,7 @@ function Genres() {
     data: genreMovies = [],
     isError: isGenreMoviesError,
     isLoading: isGenreMoviesLoading,
+    refetch: refetchGenreMovies,
   } = useMoviesByCategory("genre", selectedGenre?.title, {
     enabled: shouldLoadGenreMovies,
   });
@@ -53,6 +63,7 @@ function Genres() {
           ) : (
             <GenreDetailHeading
               genre={selectedGenre}
+              isError={isGenresError}
               isLoading={isGenresLoading}
             />
           )}
@@ -64,6 +75,7 @@ function Genres() {
               isLoading={isGenresLoading}
             />
             <GenreSortControl
+              disabled={!selectedGenre || isGenreMoviesLoading}
               isAllGenres={isAllGenres}
               onChange={setMovieSortBy}
               value={movieSortBy}
@@ -76,14 +88,18 @@ function Genres() {
             genres={sortedGenres}
             isError={isGenresError}
             isLoading={isGenresLoading}
+            onRetry={refetchGenres}
           />
         ) : (
           <GenreDetailContent
             genre={selectedGenre}
+            isGenreError={isGenresError}
             isGenreLoading={isGenresLoading}
             isMoviesError={isGenreMoviesError}
             isMoviesLoading={isGenreMoviesLoading}
             movies={sortedGenreMovies}
+            onRetryGenre={refetchGenres}
+            onRetryMovies={refetchGenreMovies}
           />
         )}
       </main>
@@ -92,7 +108,7 @@ function Genres() {
   );
 }
 
-function GenreDetailHeading({ genre, isLoading }) {
+function GenreDetailHeading({ genre, isError, isLoading }) {
   if (isLoading) {
     return (
       <div className="genres-page__heading genres-page__heading--loading">
@@ -108,8 +124,12 @@ function GenreDetailHeading({ genre, isLoading }) {
   if (!genre) {
     return (
       <div className="genres-page__heading genres-page__heading--all">
-        <h1>Genre Not Found</h1>
-        <p>This genre is not available right now.</p>
+        <h1>{isError ? "Unable to Load Genre" : "Genre Not Found"}</h1>
+        <p>
+          {isError
+            ? "We could not load the genre information right now."
+            : "This genre is not available right now."}
+        </p>
       </div>
     );
   }
@@ -153,7 +173,7 @@ function GenreFilterBar({ activeId, genres, isLoading }) {
   );
 }
 
-function GenreSortControl({ isAllGenres, onChange, value }) {
+function GenreSortControl({ disabled, isAllGenres, onChange, value }) {
   const displayedValue = isAllGenres ? "az" : value;
   const options = isAllGenres
     ? [{ label: "A-Z", value: "az" }]
@@ -164,7 +184,7 @@ function GenreSortControl({ isAllGenres, onChange, value }) {
       <span>Sort by:</span>
       <select
         aria-label="Sort genres"
-        disabled={isAllGenres}
+        disabled={isAllGenres || disabled}
         onChange={(event) => onChange(event.target.value)}
         value={displayedValue}
       >
@@ -179,7 +199,7 @@ function GenreSortControl({ isAllGenres, onChange, value }) {
   );
 }
 
-function AllGenresContent({ genres, isError, isLoading }) {
+function AllGenresContent({ genres, isError, isLoading, onRetry }) {
   if (isLoading) {
     return <GenreCardGridSkeleton />;
   }
@@ -188,7 +208,9 @@ function AllGenresContent({ genres, isError, isLoading }) {
     return (
       <GenresState
         message="We could not load genres right now."
+        onRetry={onRetry}
         title="Something went wrong"
+        variant="error"
       />
     );
   }
@@ -198,6 +220,7 @@ function AllGenresContent({ genres, isError, isLoading }) {
       <GenresState
         message="Genres will appear here once they are available."
         title="No genres to show"
+        variant="empty"
       />
     );
   }
@@ -213,10 +236,13 @@ function AllGenresContent({ genres, isError, isLoading }) {
 
 function GenreDetailContent({
   genre,
+  isGenreError,
   isGenreLoading,
   isMoviesError,
   isMoviesLoading,
   movies,
+  onRetryGenre,
+  onRetryMovies,
 }) {
   if (isGenreLoading) {
     return (
@@ -227,11 +253,25 @@ function GenreDetailContent({
     );
   }
 
+  if (isGenreError) {
+    return (
+      <GenresState
+        message="We could not load this genre right now."
+        onRetry={onRetryGenre}
+        title="Something went wrong"
+        variant="error"
+      />
+    );
+  }
+
   if (!genre) {
     return (
       <GenresState
+        actionLabel="Browse all genres"
+        actionTo="/genres"
         message="Choose another genre or go back to all genres."
         title="Genre not found"
+        variant="empty"
       />
     );
   }
@@ -247,7 +287,9 @@ function GenreDetailContent({
       {isMoviesError ? (
         <GenresState
           message={`We could not load ${genre.title.toLowerCase()} movies right now.`}
+          onRetry={onRetryMovies}
           title="Something went wrong"
+          variant="error"
         />
       ) : null}
 
@@ -255,6 +297,7 @@ function GenreDetailContent({
         <GenresState
           message={`${genre.title} movies will appear here once they are available.`}
           title="No movies to show"
+          variant="empty"
         />
       ) : null}
 
@@ -266,22 +309,24 @@ function GenreDetailContent({
         </div>
       ) : null}
 
-      <div className="genre-callout">
-        <div className="genre-callout__icon">
-          <GenreIcon genre={genre} />
+      {!isMoviesLoading && !isMoviesError && movies.length > 0 ? (
+        <div className="genre-callout">
+          <div className="genre-callout__icon">
+            <GenreIcon genre={genre} />
+          </div>
+          <span>
+            <strong>More {genre.title}, More Stories</strong>
+            <small>
+              New {genre.title.toLowerCase()} titles will appear here as they
+              are added.
+            </small>
+          </span>
+          <Link to={`/movies?genre=${encodeURIComponent(genre.title)}`}>
+            View All {genre.title}
+            <ChevronRight aria-hidden="true" size={18} strokeWidth={2.2} />
+          </Link>
         </div>
-        <span>
-          <strong>More {genre.title}, More Stories</strong>
-          <small>
-            New {genre.title.toLowerCase()} titles will appear here as they are
-            added.
-          </small>
-        </span>
-        <Link to={`/movies?genre=${encodeURIComponent(genre.title)}`}>
-          View All {genre.title}
-          <ChevronRight aria-hidden="true" size={18} strokeWidth={2.2} />
-        </Link>
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -351,11 +396,35 @@ function GenreMovieGridSkeleton() {
   );
 }
 
-function GenresState({ message, title }) {
+function GenresState({
+  actionLabel,
+  actionTo,
+  message,
+  onRetry,
+  title,
+  variant = "empty",
+}) {
+  const StateIcon = variant === "error" ? AlertCircle : SearchX;
+
   return (
-    <section className="genres-state">
+    <section
+      className={`genres-state genres-state--${variant}`}
+      role={variant === "error" ? "alert" : undefined}
+    >
+      <span className="genres-state__icon">
+        <StateIcon aria-hidden="true" size={26} strokeWidth={1.8} />
+      </span>
       <strong>{title}</strong>
       <p>{message}</p>
+      {onRetry ? (
+        <button onClick={() => onRetry()} type="button">
+          <RefreshCw aria-hidden="true" size={17} strokeWidth={2} />
+          Try Again
+        </button>
+      ) : null}
+      {actionTo && actionLabel ? (
+        <Link to={actionTo}>{actionLabel}</Link>
+      ) : null}
     </section>
   );
 }
