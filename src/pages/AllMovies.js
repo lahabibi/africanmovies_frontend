@@ -33,6 +33,7 @@ function AllMovies() {
     pageConfig.filter.type === "section" &&
     pageConfig.filter.value === "new-releases";
   const isGenrePage = pageConfig.filter.type === "genre";
+  const isLanguagePage = pageConfig.filter.type === "language";
   const { data: latestMovies } = useLatestMovies(120, {
     enabled: isNewReleasesPage,
   });
@@ -40,6 +41,11 @@ function AllMovies() {
     "genre",
     pageConfig.filter.value,
     { enabled: isGenrePage },
+  );
+  const { data: languageMovies } = useMoviesByCategory(
+    "language",
+    pageConfig.filter.value,
+    { enabled: isLanguagePage },
   );
 
   const filteredMovies = useMemo(() => {
@@ -55,7 +61,12 @@ function AllMovies() {
               ...movie,
               sortOrder: index,
             }))
-        : getFilteredMovies(pageConfig.filter);
+          : isLanguagePage
+            ? (languageMovies || []).map((movie, index) => ({
+                ...movie,
+                sortOrder: index,
+              }))
+            : getFilteredMovies(pageConfig.filter);
 
     return sourceMovies.filter((movie) => {
       if (!normalizedQuery) {
@@ -70,7 +81,9 @@ function AllMovies() {
   }, [
     genreMovies,
     isGenrePage,
+    isLanguagePage,
     isNewReleasesPage,
+    languageMovies,
     latestMovies,
     pageConfig.filter,
     query,

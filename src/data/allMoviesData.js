@@ -1,5 +1,4 @@
 import { genreRows, trendingMovies } from "./homeData";
-import { languageRows } from "./languageData";
 import { librarySearchIndex } from "./libraryData";
 
 const pageLabels = {
@@ -34,12 +33,12 @@ export function getMoviesPageConfig(searchParams) {
   const languageId = searchParams.get("language");
 
   if (languageId) {
-    const language = languageRows.find((item) => item.id === languageId);
+    const languageTitle = formatFilterTitle(languageId);
 
     return {
-      breadcrumb: ["home", "language", language?.title || languageId],
+      breadcrumb: ["home", "language", languageTitle || languageId],
       filter: { type: "language", value: languageId },
-      title: language ? `${language.title} Movies` : "Language Movies",
+      title: languageTitle ? `${languageTitle} Movies` : "Language Movies",
     };
   }
 
@@ -103,18 +102,6 @@ function buildAllMovies() {
           order: index + 30,
           sections: [row.id],
           source: "home-genre",
-        }),
-      ),
-    ),
-    ...languageRows.flatMap((language) =>
-      language.movies.map((movie, index) =>
-        normalizeMovie(movie, {
-          genre: movie.genre || language.title,
-          language: language.title,
-          languageId: language.id,
-          order: index + 160,
-          sections: [language.id],
-          source: "language",
         }),
       ),
     ),
