@@ -7,6 +7,7 @@ import MoviePosterCard from "../components/movie/MoviePosterCard";
 import { useGenres, useMoviesByCategory } from "../hooks/useCatalog";
 
 const GENRE_CARD_SKELETON_COUNT = 8;
+const GENRE_DETAIL_MOVIE_LIMIT = 100;
 const GENRE_MOVIE_SKELETON_COUNT = 12;
 const GENRE_MOVIE_SORT_OPTIONS = [
   { label: "Release Date", value: "release-date" },
@@ -235,6 +236,8 @@ function GenreDetailContent({
     );
   }
 
+  const visibleMovies = movies.slice(0, GENRE_DETAIL_MOVIE_LIMIT);
+
   return (
     <section className="genre-detail" aria-labelledby="genre-detail-title">
       <h2 id="genre-detail-title">{genre.title} Movies & Shows</h2>
@@ -257,7 +260,7 @@ function GenreDetailContent({
 
       {!isMoviesLoading && !isMoviesError && movies.length > 0 ? (
         <div className="genre-movie-grid">
-          {movies.map((movie) => (
+          {visibleMovies.map((movie) => (
             <MoviePosterCard key={movie.id} movie={movie} />
           ))}
         </div>
