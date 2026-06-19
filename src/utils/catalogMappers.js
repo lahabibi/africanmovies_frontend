@@ -48,6 +48,12 @@ export function mapMovie(rawMovie = {}) {
 
 export function mapGenre(rawGenre = {}) {
   const title = rawGenre.name || rawGenre.title || "Genre";
+  const rawCount = [
+    rawGenre.count,
+    rawGenre.movieCount,
+    rawGenre.totalMovies,
+    rawGenre.titleCount,
+  ].find((value) => value !== undefined && value !== null);
 
   return {
     id: slugify(title),
@@ -61,6 +67,7 @@ export function mapGenre(rawGenre = {}) {
     image: rawGenre.genrePictureURL,
     icon: rawGenre.genreIconURL,
     position: toNumber(rawGenre.positionOnDashboard, 0),
+    titleCount: rawCount === undefined ? null : toNumber(rawCount, 0),
     raw: rawGenre,
   };
 }

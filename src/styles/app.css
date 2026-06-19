@@ -2002,11 +2002,15 @@
 }
 
 .genres-page__heading p {
+  display: -webkit-box;
+  overflow: hidden;
   max-width: 640px;
   margin: 12px 0 0;
   color: var(--color-muted-strong);
   font-size: 15px;
   line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .genres-page__controls {
@@ -2068,11 +2072,63 @@
   color: var(--color-blue);
 }
 
+.genre-filter__skeleton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 112px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  animation: genreSkeletonPulse 1300ms ease-in-out infinite;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(var(--color-blue-rgb), 0.13),
+      rgba(255, 255, 255, 0.045)
+    );
+  background-size: 220% 100%;
+}
+
 .genre-sort-button {
   min-width: 194px;
+  gap: 7px;
   justify-content: space-between;
   border-radius: var(--radius-sm);
   cursor: pointer;
+}
+
+.genre-sort-button span {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+}
+
+.genre-sort-button select {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+}
+
+.genre-sort-button select:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.genre-sort-button option {
+  color: var(--color-text);
+  background: #06111d;
+}
+
+.genre-sort-button:focus-within {
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 1px rgba(var(--color-blue-rgb), 0.2) inset;
 }
 
 .genre-card-grid {
@@ -2119,6 +2175,18 @@
 .genre-card:focus-visible > img {
   filter: saturate(1.08) contrast(1.06);
   transform: scale(1.04);
+}
+
+.genre-card__image-placeholder {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 78% 28%,
+      rgba(var(--color-blue-rgb), 0.22),
+      transparent 32%
+    ),
+    linear-gradient(135deg, rgba(14, 29, 47, 0.9), rgba(2, 7, 13, 0.95));
 }
 
 .genre-card__shade {
@@ -2174,11 +2242,15 @@
 }
 
 .genre-card small {
+  display: -webkit-box;
+  overflow: hidden;
   max-width: 220px;
   margin-top: 9px;
   color: rgba(255, 255, 255, 0.86);
   font-size: 14px;
   line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .genre-card em {
@@ -2187,6 +2259,86 @@
   font-size: 14px;
   font-style: normal;
   font-weight: 500;
+}
+
+.genre-card--skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 11px;
+  padding: 20px 22px 18px;
+  pointer-events: none;
+}
+
+.genre-card--skeleton::before {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 76% 28%,
+      rgba(var(--color-blue-rgb), 0.13),
+      transparent 32%
+    ),
+    linear-gradient(135deg, rgba(12, 25, 42, 0.78), rgba(3, 9, 16, 0.92));
+  content: "";
+}
+
+.genre-skeleton,
+.genre-heading-skeleton,
+.genre-detail-title-skeleton,
+.genre-movie-skeleton__poster,
+.genre-movie-skeleton__meta {
+  position: relative;
+  z-index: 1;
+  display: block;
+  border-radius: 999px;
+  animation: genreSkeletonPulse 1300ms ease-in-out infinite;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(var(--color-blue-rgb), 0.15),
+      rgba(255, 255, 255, 0.05)
+    );
+  background-size: 220% 100%;
+}
+
+.genre-skeleton--icon,
+.genre-heading-skeleton--icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}
+
+.genre-skeleton--title {
+  width: 72%;
+  height: 34px;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+.genre-skeleton--copy {
+  width: 82%;
+  height: 13px;
+}
+
+.genre-skeleton--count {
+  width: 92px;
+  height: 13px;
+  margin-top: 8px;
+}
+
+.genre-heading-skeleton--title {
+  width: 220px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.genre-heading-skeleton--copy {
+  width: min(420px, 58vw);
+  height: 14px;
+  margin-top: 13px;
 }
 
 .genre-detail {
@@ -2205,6 +2357,35 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 18px 14px;
+}
+
+.genre-movie-grid .poster-card {
+  flex: initial;
+}
+
+.genre-movie-grid--loading {
+  pointer-events: none;
+}
+
+.genre-detail-title-skeleton {
+  width: 240px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.genre-movie-skeleton {
+  display: grid;
+  gap: 9px;
+}
+
+.genre-movie-skeleton__poster {
+  aspect-ratio: 0.72;
+  border-radius: var(--radius-sm);
+}
+
+.genre-movie-skeleton__meta {
+  width: 74%;
+  height: 10px;
 }
 
 .genre-movie-card {
@@ -2360,6 +2541,53 @@
 .genre-callout a:focus-visible {
   border-color: rgba(var(--color-blue-rgb), 0.54);
   background: rgba(var(--color-blue-rgb), 0.12);
+}
+
+.genres-state {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(var(--color-blue-rgb), 0.12),
+      transparent 42%
+    ),
+    rgba(7, 15, 25, 0.48);
+  padding: 26px;
+  text-align: center;
+}
+
+.genres-state strong {
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.genres-state p {
+  max-width: 440px;
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@keyframes genreSkeletonPulse {
+  0% {
+    background-position: 120% 0;
+    opacity: 0.58;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    background-position: -120% 0;
+    opacity: 0.58;
+  }
 }
 
 .languages-page {
