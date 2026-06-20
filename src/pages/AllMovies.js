@@ -10,11 +10,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { useLatestMovies, useMoviesByCategory } from "../hooks/useCatalog";
 import {
-  getFilteredMovies,
-  getMoviesPageConfig,
-} from "../data/allMoviesData";
+  useLatestMovies,
+  useMovies,
+  useMoviesByCategory,
+} from "../hooks/useCatalog";
+import { getMoviesPageConfig } from "../data/moviesPageConfig";
 
 const PAGE_SIZE = 24;
 const MOVIE_GRID_SKELETON_COUNT = 12;
@@ -39,6 +40,8 @@ function AllMovies() {
     pageConfig.filter.value === "new-releases";
   const isGenrePage = pageConfig.filter.type === "genre";
   const isLanguagePage = pageConfig.filter.type === "language";
+  const isAllMoviesPage = pageConfig.filter.type === "all";
+  const allMoviesQuery = useMovies({ enabled: isAllMoviesPage });
   const latestMoviesQuery = useLatestMovies(120, {
     enabled: isNewReleasesPage,
   });
@@ -53,12 +56,12 @@ function AllMovies() {
     { enabled: isLanguagePage },
   );
   const activeApiQuery = isNewReleasesPage
-    ? latestMoviesQuery
-    : isGenrePage
-      ? genreMoviesQuery
-      : isLanguagePage
-        ? languageMoviesQuery
-        : null;
+      ? latestMoviesQuery
+      : isGenrePage
+        ? genreMoviesQuery
+        : isLanguagePage
+          ? languageMoviesQuery
+          : allMoviesQuery;
   const isApiLoading = Boolean(activeApiQuery?.isLoading);
   const isApiError = Boolean(activeApiQuery?.isError);
 
@@ -69,20 +72,20 @@ function AllMovies() {
         ? genreMoviesQuery.data || []
         : isLanguagePage
           ? languageMoviesQuery.data || []
-          : getFilteredMovies(pageConfig.filter);
+          : allMoviesQuery.data || [];
 
     return apiMovies.map((movie, index) => ({
       ...movie,
       sortOrder: index,
     }));
   }, [
+    allMoviesQuery.data,
     genreMoviesQuery.data,
     isGenrePage,
     isLanguagePage,
     isNewReleasesPage,
     languageMoviesQuery.data,
     latestMoviesQuery.data,
-    pageConfig.filter,
   ]);
 
   const filteredMovies = useMemo(() => {

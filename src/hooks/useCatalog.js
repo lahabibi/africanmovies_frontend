@@ -53,10 +53,12 @@ export function useHomeCatalog() {
   });
 }
 
-export function useMovies() {
+export function useMovies({ enabled = true } = {}) {
   return useQuery({
+    enabled,
     queryFn: async () => (await getMovies()).map(mapMovie),
     queryKey: catalogKeys.movies(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
