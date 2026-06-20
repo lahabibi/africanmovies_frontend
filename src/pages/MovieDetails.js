@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, Play, TvMinimalPlay } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Film,
+  Play,
+  RefreshCw,
+  TvMinimalPlay,
+} from "lucide-react";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import ContentRow from "../components/movie/ContentRow";
@@ -26,10 +33,6 @@ import releaseYearIcon from "../assets/icons/ic_release_year.png";
 import starIcon from "../assets/icons/ic_star.png";
 import watchlistIcon from "../assets/icons/ic_watchlist.png";
 import watchlistFillIcon from "../assets/icons/ic_watchlist_fill.png";
-import {
-  defaultMovieDetail,
-  movieDetailsBySlug,
-} from "../data/movieDetailsData";
 
 const aboutFieldIcons = {
   cast: castIcon,
@@ -57,11 +60,48 @@ const aboutFieldOrder = [
 
 function MovieDetails() {
   const { slug } = useParams();
+  const {
+    data: apiMovieDetails,
+    error: movieDetailsError,
+    isError: isMovieDetailsError,
+    isLoading: isMovieDetailsLoading,
+    refetch: refetchMovieDetails,
+  } = useMovieDetails(slug);
+  const hasValidMovieId = isMongoObjectId(slug);
+  const isMovieNotFound =
+    !hasValidMovieId || movieDetailsError?.status === 404;
+
+  if (isMovieDetailsLoading) {
+    return <MovieDetailsSkeleton />;
+  }
+
+  if (isMovieNotFound || (!isMovieDetailsError && !apiMovieDetails?.movie)) {
+    return (
+      <MovieDetailsRequestState
+        message="The movie may have been removed or the link is no longer available."
+        title="Movie not found"
+        variant="not-found"
+      />
+    );
+  }
+
+  if (isMovieDetailsError) {
+    return (
+      <MovieDetailsRequestState
+        message="We could not load this movie right now. Please check your connection and try again."
+        onRetry={refetchMovieDetails}
+        title="Something went wrong"
+        variant="error"
+      />
+    );
+  }
+
+  return <MovieDetailsContent movie={apiMovieDetails.movie} />;
+}
+
+function MovieDetailsContent({ movie }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: apiMovieDetails } = useMovieDetails(slug);
-  const movie =
-    apiMovieDetails?.movie || movieDetailsBySlug[slug] || defaultMovieDetail;
   const heroMovie = movie.heroMovie || { mode: "image", banner: movie.banner };
   const hasBannerPicture =
     movie.hasBannerPicture ?? Boolean(movie.bannerPicture || heroMovie.banner);
@@ -398,6 +438,108 @@ function MovieDetails() {
                 />
               ))}
             </ContentRow>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </AppShell>
+  );
+}
+
+function MovieDetailsSkeleton() {
+  return (
+    <AppShell>
+      <main
+        aria-busy="true"
+        aria-label="Loading movie details"
+        className="movie-detail-page movie-detail-loading"
+      >
+        <section className="movie-detail-hero movie-detail-loading__hero">
+          <div className="movie-detail-hero__content movie-detail-loading__hero-content">
+            <span className="movie-detail-skeleton movie-detail-skeleton--title" />
+            <span className="movie-detail-skeleton movie-detail-skeleton--meta" />
+            <span className="movie-detail-skeleton movie-detail-skeleton--copy" />
+            <span className="movie-detail-skeleton movie-detail-skeleton--copy-short" />
+            <div className="movie-detail-loading__actions" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </section>
+
+        <section className="movie-detail-body movie-detail-loading__body">
+          <div className="movie-detail-loading__tabs" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+
+          <div className="movie-detail-loading__about" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, columnIndex) => (
+              <div key={columnIndex}>
+                {Array.from({ length: columnIndex === 2 ? 3 : 5 }).map(
+                  (_, rowIndex) => (
+                    <span
+                      className="movie-detail-skeleton"
+                      key={rowIndex}
+                    />
+                  ),
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="movie-detail-loading__row" aria-hidden="true">
+            <span className="movie-detail-skeleton movie-detail-skeleton--row-title" />
+            <div>
+              {Array.from({ length: 7 }).map((_, index) => (
+                <span
+                  className="movie-detail-skeleton movie-detail-skeleton--poster"
+                  key={index}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </AppShell>
+  );
+}
+
+function MovieDetailsRequestState({ message, onRetry, title, variant }) {
+  const StateIcon = variant === "error" ? AlertCircle : Film;
+
+  return (
+    <AppShell>
+      <main className="movie-detail-page movie-detail-request-state">
+        <section
+          aria-labelledby="movie-detail-state-title"
+          className={`movie-detail-request-state__content movie-detail-request-state__content--${variant}`}
+          role={variant === "error" ? "alert" : undefined}
+        >
+          <span className="movie-detail-request-state__icon">
+            <StateIcon aria-hidden="true" size={32} strokeWidth={1.7} />
+          </span>
+          <p>{variant === "error" ? "Unable to load" : "Unavailable"}</p>
+          <h1 id="movie-detail-state-title">{title}</h1>
+          <span>{message}</span>
+          <div className="movie-detail-request-state__actions">
+            {onRetry ? (
+              <button
+                className="button button--primary"
+                onClick={() => onRetry()}
+                type="button"
+              >
+                <RefreshCw aria-hidden="true" size={18} strokeWidth={2} />
+                Try Again
+              </button>
+            ) : null}
+            <Link className="button button--ghost" to="/movies">
+              Browse Movies
+            </Link>
           </div>
         </section>
       </main>
