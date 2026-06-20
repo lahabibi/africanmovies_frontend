@@ -1,21 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Heart, Play, TvMinimalPlay } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Play, TvMinimalPlay } from "lucide-react";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import ContentRow from "../components/movie/ContentRow";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
 import TrailerModal from "../components/movie/TrailerModal";
-import { useMovieDetails, useTrailerAccess } from "../hooks/useCatalog";
+import {
+  useMovieDetails,
+  useMovieUserData,
+  useToggleMovieFavorite,
+  useToggleMovieWatchlist,
+  useTrailerAccess,
+} from "../hooks/useCatalog";
+import { getAuthToken } from "../api/authToken";
 import { resolveTrailerPlaybackSource } from "../utils/trailerPlayback";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
 import languageIcon from "../assets/icons/ic_language.png";
 import likeIcon from "../assets/icons/ic_like.png";
+import likeFillIcon from "../assets/icons/ic_like_fill.png";
 import productionIcon from "../assets/icons/ic_production.png";
 import releaseYearIcon from "../assets/icons/ic_release_year.png";
 import starIcon from "../assets/icons/ic_star.png";
 import watchlistIcon from "../assets/icons/ic_watchlist.png";
+import watchlistFillIcon from "../assets/icons/ic_watchlist_fill.png";
 import {
   defaultMovieDetail,
   movieDetailsBySlug,
@@ -47,14 +56,30 @@ const aboutFieldOrder = [
 
 function MovieDetails() {
   const { slug } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: apiMovieDetails } = useMovieDetails(slug);
   const movie =
     apiMovieDetails?.movie || movieDetailsBySlug[slug] || defaultMovieDetail;
   const heroMovie = movie.heroMovie || { mode: "image", banner: movie.banner };
+  const hasBannerPicture =
+    movie.hasBannerPicture ?? Boolean(movie.bannerPicture || heroMovie.banner);
   const priceLabel = `$${movie.price.toFixed(2)}`;
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const [listActionError, setListActionError] = useState("");
   const movieId = movie.backendId || movie.id;
   const canRequestTrailerAccess = isMongoObjectId(movieId);
+  const isAuthenticated = Boolean(getAuthToken());
+  const {
+    data: movieUserData,
+    isLoading: isMovieUserDataLoading,
+  } = useMovieUserData(movieId, {
+    enabled: isAuthenticated && canRequestTrailerAccess,
+  });
+  const favoriteMutation = useToggleMovieFavorite(movieId);
+  const watchlistMutation = useToggleMovieWatchlist(movieId);
+  const isFavorite = Boolean(movieUserData?.isFavorite);
+  const isInWatchlist = Boolean(movieUserData?.inWatchlist);
   const {
     data: trailerAccess,
     error: trailerError,
@@ -93,6 +118,36 @@ function MovieDetails() {
     setIsTrailerOpen(false);
   };
 
+  const redirectToSignIn = () => {
+    navigate("/signin", {
+      state: { from: location.pathname },
+    });
+  };
+
+  const runListAction = async (mutation, label) => {
+    if (!isAuthenticated) {
+      redirectToSignIn();
+      return;
+    }
+
+    if (!canRequestTrailerAccess) {
+      return;
+    }
+
+    setListActionError("");
+
+    try {
+      await mutation.mutateAsync();
+    } catch (error) {
+      if (error?.status === 401 || error?.status === 403) {
+        redirectToSignIn();
+        return;
+      }
+
+      setListActionError(`We could not update your ${label}. Try again.`);
+    }
+  };
+
   return (
     <AppShell>
       <main className="movie-detail-page">
@@ -100,23 +155,15 @@ function MovieDetails() {
           className="movie-detail-hero"
           aria-labelledby="movie-detail-title"
         >
-          {heroMovie.mode === "video" && heroMovie.videoSrc ? (
-            <video
-              className="movie-detail-hero__video"
-              autoPlay
-              loop
-              muted
-              playsInline
-              poster={heroMovie.poster || movie.banner}
-              src={heroMovie.videoSrc}
-            />
-          ) : (
+          {hasBannerPicture ? (
             <img
               className="movie-detail-hero__image"
-              src={heroMovie.banner || movie.banner}
+              src={movie.bannerPicture || heroMovie.banner || movie.banner}
               alt=""
               aria-hidden="true"
             />
+          ) : (
+            <MovieDetailTrailerBackground movie={movie} />
           )}
           <span className="movie-detail-hero__shade" aria-hidden="true" />
 
@@ -135,7 +182,9 @@ function MovieDetails() {
               {/* <span className="movie-detail-badge">{movie.quality}</span> */}
             </div>
 
-            <p>{movie.description}</p>
+            <p className="movie-detail-hero__description">
+              {movie.description}
+            </p>
 
             <div className="movie-detail-actions">
               <Link
@@ -155,20 +204,60 @@ function MovieDetails() {
                 Watch Trailer
               </button>
 
-              <button className="movie-detail-icon-action" type="button">
+              <button
+                aria-busy={favoriteMutation.isPending}
+                aria-pressed={isFavorite}
+                className={`movie-detail-icon-action${
+                  isFavorite ? " is-active" : ""
+                }`}
+                disabled={
+                  favoriteMutation.isPending ||
+                  (isAuthenticated &&
+                    (!canRequestTrailerAccess || isMovieUserDataLoading))
+                }
+                onClick={() => runListAction(favoriteMutation, "favorites")}
+                type="button"
+              >
                 <span>
-                  <Heart aria-hidden="true" size={25} strokeWidth={1.8} />
+                  <img
+                    src={isFavorite ? likeFillIcon : likeIcon}
+                    alt=""
+                    aria-hidden="true"
+                  />
                 </span>
-                Add to Favorite
+                {isFavorite ? "Favorited" : "Add to Favorite"}
               </button>
 
-              <button className="movie-detail-icon-action" type="button">
+              <button
+                aria-busy={watchlistMutation.isPending}
+                aria-pressed={isInWatchlist}
+                className={`movie-detail-icon-action${
+                  isInWatchlist ? " is-active" : ""
+                }`}
+                disabled={
+                  watchlistMutation.isPending ||
+                  (isAuthenticated &&
+                    (!canRequestTrailerAccess || isMovieUserDataLoading))
+                }
+                onClick={() => runListAction(watchlistMutation, "watchlist")}
+                type="button"
+              >
                 <span>
-                  <img src={watchlistIcon} alt="" aria-hidden="true" />
+                  <img
+                    src={isInWatchlist ? watchlistFillIcon : watchlistIcon}
+                    alt=""
+                    aria-hidden="true"
+                  />
                 </span>
-                Add to Watchlist
+                {isInWatchlist ? "In Watchlist" : "Add to Watchlist"}
               </button>
             </div>
+
+            {listActionError ? (
+              <p className="movie-detail-action-error" role="alert">
+                {listActionError}
+              </p>
+            ) : null}
           </div>
         </section>
 
@@ -262,6 +351,64 @@ function MovieDetails() {
       <Footer />
     </AppShell>
   );
+}
+
+function MovieDetailTrailerBackground({ movie }) {
+  const trailerUrl = movie.trailerUrl || movie.heroMovie?.trailerUrl || "";
+
+  if (isNativeVideoUrl(trailerUrl)) {
+    return (
+      <video
+        autoPlay
+        className="movie-detail-hero__video"
+        loop
+        muted
+        playsInline
+        poster={movie.poster}
+        src={trailerUrl}
+      />
+    );
+  }
+
+  if (trailerUrl) {
+    return (
+      <iframe
+        allow="autoplay; encrypted-media; picture-in-picture"
+        aria-hidden="true"
+        className="movie-detail-hero__video movie-detail-hero__video-frame"
+        src={getBackgroundTrailerUrl(trailerUrl)}
+        tabIndex="-1"
+        title={`${movie.title} trailer background`}
+      />
+    );
+  }
+
+  return (
+    <img
+      aria-hidden="true"
+      alt=""
+      className="movie-detail-hero__image"
+      src={movie.poster}
+    />
+  );
+}
+
+function getBackgroundTrailerUrl(trailerUrl) {
+  try {
+    const url = new URL(trailerUrl);
+    url.searchParams.set("autoplay", "true");
+    url.searchParams.set("controls", "false");
+    url.searchParams.set("loop", "true");
+    url.searchParams.set("muted", "true");
+    url.searchParams.set("preload", "auto");
+    return url.toString();
+  } catch {
+    return trailerUrl;
+  }
+}
+
+function isNativeVideoUrl(url) {
+  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
 }
 
 function isMongoObjectId(value) {

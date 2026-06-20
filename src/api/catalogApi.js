@@ -20,6 +20,18 @@ export function getMovieUserData(movieId) {
   return apiClient(`/movies/movie-details/${movieId}/user-data`);
 }
 
+export function toggleMovieFavorite(movieId) {
+  return apiClient("/movies/favorite", {
+    body: { movieId },
+  });
+}
+
+export function toggleMovieWatchlist(movieId) {
+  return apiClient("/movies/watchlist", {
+    body: { movieId },
+  });
+}
+
 export function getMoviesByCategory(category, value) {
   return apiClient(
     `/movies/category/${encodeURIComponent(category)}/${encodeURIComponent(

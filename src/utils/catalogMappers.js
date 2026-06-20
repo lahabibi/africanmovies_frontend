@@ -6,7 +6,9 @@ export function mapMovie(rawMovie = {}) {
   const id = String(rawMovie._id || rawMovie.id || rawMovie.slug || "");
   const title = rawMovie.title || "Untitled";
   const poster = rawMovie.moviePictureURL || rawMovie.poster || rawMovie.banner;
-  const banner = rawMovie.movieBannerPictureURL || rawMovie.banner || poster;
+  const bannerPicture =
+    rawMovie.movieBannerPictureURL || rawMovie.bannerPicture || rawMovie.banner;
+  const banner = bannerPicture || poster;
   const genre = rawMovie.genre || "Drama";
   const language = rawMovie.language || "English";
 
@@ -17,6 +19,8 @@ export function mapMovie(rawMovie = {}) {
     title,
     poster,
     banner,
+    bannerPicture,
+    hasBannerPicture: Boolean(bannerPicture),
     thumbnail: banner || poster,
     genre,
     genres: Array.isArray(rawMovie.genres) ? rawMovie.genres : [genre],
@@ -100,10 +104,11 @@ export function mapMovieDetails(rawDetails = {}) {
         production: movie.countryName || "AfricanMovies",
       },
       heroMovie: {
-        mode: movie.videoUrl ? "video" : "image",
-        banner: movie.banner,
-        poster: movie.banner,
-        videoSrc: movie.videoUrl,
+        mode: movie.hasBannerPicture ? "image" : "video",
+        banner: movie.bannerPicture,
+        poster: movie.poster,
+        trailerUrl: movie.trailerUrl,
+        videoSrc: movie.hasBannerPicture ? null : movie.trailerUrl,
       },
       moreLikeThis: relatedMovies,
       stats: {

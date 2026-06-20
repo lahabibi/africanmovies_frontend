@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAuthToken } from "../api/authToken";
 import {
   getGenre,
@@ -13,6 +13,8 @@ import {
   getMoviesByCategory,
   getTrailerAccess,
   searchMovies,
+  toggleMovieFavorite,
+  toggleMovieWatchlist,
 } from "../api/catalogApi";
 import {
   mapGenre,
@@ -84,6 +86,40 @@ export function useMovieUserData(movieId, { enabled = true } = {}) {
     enabled: isMongoObjectId(movieId) && enabled,
     queryFn: () => getMovieUserData(movieId),
     queryKey: catalogKeys.movieUserData(movieId),
+  });
+}
+
+export function useToggleMovieFavorite(movieId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => toggleMovieFavorite(movieId),
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        catalogKeys.movieUserData(movieId),
+        (currentData = {}) => ({
+          ...currentData,
+          isFavorite: response?.action === "ADDED",
+        }),
+      );
+    },
+  });
+}
+
+export function useToggleMovieWatchlist(movieId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => toggleMovieWatchlist(movieId),
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        catalogKeys.movieUserData(movieId),
+        (currentData = {}) => ({
+          ...currentData,
+          inWatchlist: response?.action === "ADDED",
+        }),
+      );
+    },
   });
 }
 

@@ -4508,6 +4508,15 @@
   object-position: center 32%;
 }
 
+.movie-detail-hero__video-frame {
+  inset: 50% auto auto 50%;
+  width: max(100vw, 177.78vh);
+  height: max(56.25vw, 100vh);
+  border: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
 .movie-detail-hero__shade {
   position: absolute;
   inset: 0;
@@ -4595,12 +4604,16 @@
   display: none;
 }
 
-.movie-detail-hero__content > p {
+.movie-detail-hero__description {
+  display: -webkit-box;
   max-width: 520px;
   margin: 18px 0 0;
+  overflow: hidden;
   color: rgba(255, 255, 255, 0.88);
   font-size: 17px;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .movie-detail-actions {
@@ -4672,6 +4685,29 @@
 
 .movie-detail-icon-action:active {
   transform: scale(0.98);
+}
+
+.movie-detail-icon-action.is-active {
+  color: var(--color-blue);
+}
+
+.movie-detail-icon-action.is-active span {
+  border-color: rgba(var(--color-blue-rgb), 0.68);
+  background: rgba(var(--color-blue-rgb), 0.16);
+  box-shadow: 0 0 0 1px rgba(var(--color-blue-rgb), 0.12) inset;
+}
+
+.movie-detail-icon-action:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.movie-detail-action-error {
+  max-width: 520px;
+  margin: 12px 0 0;
+  color: #ff7e8d;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .movie-detail-body {
@@ -6033,7 +6069,7 @@
     font-size: clamp(44px, 12vw, 70px);
   }
 
-  .movie-detail-hero__content > p {
+  .movie-detail-hero__description {
     max-width: 600px;
     font-size: 16px;
   }
@@ -6282,7 +6318,7 @@
     font-size: 13px;
   }
 
-  .movie-detail-hero__content > p {
+  .movie-detail-hero__description {
     font-size: 15px;
   }
 
