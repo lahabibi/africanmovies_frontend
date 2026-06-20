@@ -1,6 +1,6 @@
 const DEFAULT_PRICE = 0.99;
 const DEFAULT_MATURITY_RATING = "16+";
-const CONTINUE_WATCHING_EXPIRING_SOON_MS = 3 * 24 * 60 * 60 * 1000;
+const ACCESS_EXPIRING_SOON_MS = 3 * 24 * 60 * 60 * 1000;
 
 export function mapMovie(rawMovie = {}) {
   const id = String(rawMovie._id || rawMovie.id || rawMovie.slug || "");
@@ -123,7 +123,7 @@ export function mapHomeData(rawHome = {}) {
   const bannerMovies = movies.filter((movie) => movie.isBanner);
   const heroSlides = (bannerMovies.length ? bannerMovies : movies).slice(0, 5);
   const homeHero = buildHomeHero(heroSlides, rawHome.longevity);
-  const accessByMovieId = buildAccessByMovieId(orders, movies);
+  const accessByMovieId = buildActiveMovieAccessMap(orders, movies);
   const moviesWithAccess = movies.map((movie) => ({
     ...movie,
     access: accessByMovieId.get(movie.id) || null,
@@ -188,7 +188,7 @@ function buildGenreRows(genres, movies) {
     .filter((row) => row.movies.length > 0);
 }
 
-function buildAccessByMovieId(orders, movies) {
+export function buildActiveMovieAccessMap(orders = [], movies = []) {
   const movieById = new Map(movies.map((movie) => [movie.id, movie]));
 
   return orders.reduce((accessMap, order) => {
@@ -196,7 +196,7 @@ function buildAccessByMovieId(orders, movies) {
     const movie = movieById.get(movieId);
     const access = mapOrderAccess(order, movie);
 
-    if (movieId && access) {
+    if (movieId && access && access.status !== "expired") {
       accessMap.set(movieId, access);
     }
 
@@ -241,7 +241,7 @@ function getContinueWatchingStatus(order) {
   const millisecondsLeft = expiryDate ? expiryDate.getTime() - Date.now() : 0;
 
   return millisecondsLeft > 0 &&
-    millisecondsLeft < CONTINUE_WATCHING_EXPIRING_SOON_MS
+    millisecondsLeft < ACCESS_EXPIRING_SOON_MS
     ? "expiring"
     : "active";
 }
@@ -261,7 +261,7 @@ function mapOrderAccess(order, movie) {
 
   const millisecondsLeft = expiryDate ? expiryDate.getTime() - now.getTime() : 0;
   const isExpiringSoon =
-    millisecondsLeft > 0 && millisecondsLeft <= 48 * 60 * 60 * 1000;
+    millisecondsLeft > 0 && millisecondsLeft <= ACCESS_EXPIRING_SOON_MS;
   const progress = getWatchProgress(order, movie);
 
   return {

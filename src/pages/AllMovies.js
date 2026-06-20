@@ -15,7 +15,9 @@ import {
   useMovies,
   useMoviesByCategory,
 } from "../hooks/useCatalog";
+import { useActiveOrders } from "../hooks/useOrders";
 import { getMoviesPageConfig } from "../data/moviesPageConfig";
+import { buildActiveMovieAccessMap } from "../utils/catalogMappers";
 
 const PAGE_SIZE = 24;
 const MOVIE_GRID_SKELETON_COUNT = 12;
@@ -55,15 +57,18 @@ function AllMovies() {
     pageConfig.filter.value,
     { enabled: isLanguagePage },
   );
+  const activeOrdersQuery = useActiveOrders();
   const activeApiQuery = isNewReleasesPage
-      ? latestMoviesQuery
-      : isGenrePage
-        ? genreMoviesQuery
-        : isLanguagePage
-          ? languageMoviesQuery
-          : allMoviesQuery;
+    ? latestMoviesQuery
+    : isGenrePage
+      ? genreMoviesQuery
+      : isLanguagePage
+        ? languageMoviesQuery
+        : allMoviesQuery;
   const isApiLoading = Boolean(activeApiQuery?.isLoading);
   const isApiError = Boolean(activeApiQuery?.isError);
+  const isPageLoading = isApiLoading || activeOrdersQuery.isLoading;
+  const isPageError = isApiError || activeOrdersQuery.isError;
 
   const sourceMovies = useMemo(() => {
     const apiMovies = isNewReleasesPage
@@ -87,6 +92,12 @@ function AllMovies() {
     languageMoviesQuery.data,
     latestMoviesQuery.data,
   ]);
+
+  const accessByMovieId = useMemo(
+    () =>
+      buildActiveMovieAccessMap(activeOrdersQuery.data || [], sourceMovies),
+    [activeOrdersQuery.data, sourceMovies],
+  );
 
   const filteredMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -180,34 +191,43 @@ function AllMovies() {
         <section className="movies-results" aria-label={pageConfig.title}>
           <div className="movies-results__summary">
             <strong>
-              {isApiLoading
+              {isPageLoading
                 ? "Loading titles..."
-                : isApiError
+                : isPageError
                   ? "Titles unavailable"
                   : `${sortedMovies.length} titles`}
             </strong>
             <span>Movies you purchased are marked on the poster.</span>
           </div>
 
-          {isApiLoading ? <MoviesGridSkeleton /> : null}
+          {isPageLoading ? <MoviesGridSkeleton /> : null}
 
-          {!isApiLoading && isApiError ? (
+          {!isPageLoading && isPageError ? (
             <MoviesResultsState
-              message="We could not load these movies right now."
-              onRetry={activeApiQuery?.refetch}
+              message={
+                activeOrdersQuery.isError
+                  ? "We could not load your active movie access right now."
+                  : "We could not load these movies right now."
+              }
+              onRetry={
+                activeOrdersQuery.isError
+                  ? activeOrdersQuery.refetch
+                  : activeApiQuery?.refetch
+              }
               title="Something went wrong"
               variant="error"
             />
           ) : null}
 
-          {!isApiLoading && !isApiError && visibleMovies.length > 0 ? (
+          {!isPageLoading && !isPageError && visibleMovies.length > 0 ? (
             <div className="movies-grid">
               {visibleMovies.map((movie) => {
                 const displayMovie = getDisplayMovie(movie, pageConfig);
+                const access = accessByMovieId.get(movie.id) || null;
 
                 return (
                   <MoviePosterCard
-                    access={movie.access}
+                    access={access}
                     key={movie.slug}
                     movie={displayMovie}
                   />
@@ -216,7 +236,7 @@ function AllMovies() {
             </div>
           ) : null}
 
-          {!isApiLoading && !isApiError && visibleMovies.length === 0 ? (
+          {!isPageLoading && !isPageError && visibleMovies.length === 0 ? (
             <MoviesResultsState
               message={
                 query.trim() && sourceMovies.length > 0
@@ -231,7 +251,7 @@ function AllMovies() {
             />
           ) : null}
 
-          {!isApiLoading && !isApiError && hasMoreMovies ? (
+          {!isPageLoading && !isPageError && hasMoreMovies ? (
             <div className="movies-load-sentinel" ref={loadMoreRef}>
               <span>Loading more movies...</span>
             </div>
