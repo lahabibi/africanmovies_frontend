@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  RefreshCw,
+  Search,
+  SearchX,
+} from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
@@ -11,6 +17,7 @@ import {
 } from "../data/allMoviesData";
 
 const PAGE_SIZE = 24;
+const MOVIE_GRID_SKELETON_COUNT = 12;
 
 const sortOptions = [
   { value: "popular", label: "Popular" },
@@ -34,39 +41,54 @@ function AllMovies() {
     pageConfig.filter.value === "new-releases";
   const isGenrePage = pageConfig.filter.type === "genre";
   const isLanguagePage = pageConfig.filter.type === "language";
-  const { data: latestMovies } = useLatestMovies(120, {
+  const latestMoviesQuery = useLatestMovies(120, {
     enabled: isNewReleasesPage,
   });
-  const { data: genreMovies } = useMoviesByCategory(
+  const genreMoviesQuery = useMoviesByCategory(
     "genre",
     pageConfig.filter.value,
     { enabled: isGenrePage },
   );
-  const { data: languageMovies } = useMoviesByCategory(
+  const languageMoviesQuery = useMoviesByCategory(
     "language",
     pageConfig.filter.value,
     { enabled: isLanguagePage },
   );
+  const activeApiQuery = isNewReleasesPage
+    ? latestMoviesQuery
+    : isGenrePage
+      ? genreMoviesQuery
+      : isLanguagePage
+        ? languageMoviesQuery
+        : null;
+  const isApiLoading = Boolean(activeApiQuery?.isLoading);
+  const isApiError = Boolean(activeApiQuery?.isError);
+
+  const sourceMovies = useMemo(() => {
+    const apiMovies = isNewReleasesPage
+      ? latestMoviesQuery.data || []
+      : isGenrePage
+        ? genreMoviesQuery.data || []
+        : isLanguagePage
+          ? languageMoviesQuery.data || []
+          : getFilteredMovies(pageConfig.filter);
+
+    return apiMovies.map((movie, index) => ({
+      ...movie,
+      sortOrder: index,
+    }));
+  }, [
+    genreMoviesQuery.data,
+    isGenrePage,
+    isLanguagePage,
+    isNewReleasesPage,
+    languageMoviesQuery.data,
+    latestMoviesQuery.data,
+    pageConfig.filter,
+  ]);
 
   const filteredMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const sourceMovies =
-      isNewReleasesPage && latestMovies?.length > 0
-        ? latestMovies.map((movie, index) => ({
-            ...movie,
-            sortOrder: index,
-          }))
-        : isGenrePage
-          ? (genreMovies || []).map((movie, index) => ({
-              ...movie,
-              sortOrder: index,
-            }))
-          : isLanguagePage
-            ? (languageMovies || []).map((movie, index) => ({
-                ...movie,
-                sortOrder: index,
-              }))
-            : getFilteredMovies(pageConfig.filter);
 
     return sourceMovies.filter((movie) => {
       if (!normalizedQuery) {
@@ -79,14 +101,8 @@ function AllMovies() {
         .includes(normalizedQuery);
     });
   }, [
-    genreMovies,
-    isGenrePage,
-    isLanguagePage,
-    isNewReleasesPage,
-    languageMovies,
-    latestMovies,
-    pageConfig.filter,
     query,
+    sourceMovies,
   ]);
 
   const sortedMovies = useMemo(
@@ -165,11 +181,28 @@ function AllMovies() {
 
         <section className="movies-results" aria-label={pageConfig.title}>
           <div className="movies-results__summary">
-            <strong>{sortedMovies.length} titles</strong>
+            <strong>
+              {isApiLoading
+                ? "Loading titles..."
+                : isApiError
+                  ? "Titles unavailable"
+                  : `${sortedMovies.length} titles`}
+            </strong>
             <span>Movies you purchased are marked on the poster.</span>
           </div>
 
-          {visibleMovies.length > 0 ? (
+          {isApiLoading ? <MoviesGridSkeleton /> : null}
+
+          {!isApiLoading && isApiError ? (
+            <MoviesResultsState
+              message="We could not load these movies right now."
+              onRetry={activeApiQuery?.refetch}
+              title="Something went wrong"
+              variant="error"
+            />
+          ) : null}
+
+          {!isApiLoading && !isApiError && visibleMovies.length > 0 ? (
             <div className="movies-grid">
               {visibleMovies.map((movie) => {
                 const displayMovie = getDisplayMovie(movie, pageConfig);
@@ -183,14 +216,24 @@ function AllMovies() {
                 );
               })}
             </div>
-          ) : (
-            <div className="movies-empty">
-              <strong>No movies found</strong>
-              <p>Try a different search or open another category.</p>
-            </div>
-          )}
+          ) : null}
 
-          {hasMoreMovies ? (
+          {!isApiLoading && !isApiError && visibleMovies.length === 0 ? (
+            <MoviesResultsState
+              message={
+                query.trim() && sourceMovies.length > 0
+                  ? "Try a different title or clear your search."
+                  : "Movies will appear here once they are available."
+              }
+              title={
+                query.trim() && sourceMovies.length > 0
+                  ? "No matching movies"
+                  : "No movies to show"
+              }
+            />
+          ) : null}
+
+          {!isApiLoading && !isApiError && hasMoreMovies ? (
             <div className="movies-load-sentinel" ref={loadMoreRef}>
               <span>Loading more movies...</span>
             </div>
@@ -199,6 +242,47 @@ function AllMovies() {
       </main>
       <Footer />
     </AppShell>
+  );
+}
+
+function MoviesGridSkeleton() {
+  return (
+    <div
+      className="movies-grid movies-grid--loading"
+      aria-busy="true"
+      aria-label="Loading movies"
+    >
+      {Array.from({ length: MOVIE_GRID_SKELETON_COUNT }).map((_, index) => (
+        <article className="poster-card movies-card-skeleton" key={index}>
+          <span className="movies-card-skeleton__poster" />
+          <span className="movies-card-skeleton__title" />
+          <span className="movies-card-skeleton__meta" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function MoviesResultsState({ message, onRetry, title, variant = "empty" }) {
+  const StateIcon = variant === "error" ? AlertCircle : SearchX;
+
+  return (
+    <div
+      className={`movies-empty movies-empty--${variant}`}
+      role={variant === "error" ? "alert" : undefined}
+    >
+      <span className="movies-empty__icon">
+        <StateIcon aria-hidden="true" size={26} strokeWidth={1.8} />
+      </span>
+      <strong>{title}</strong>
+      <p>{message}</p>
+      {onRetry ? (
+        <button onClick={() => onRetry()} type="button">
+          <RefreshCw aria-hidden="true" size={17} strokeWidth={2} />
+          Try Again
+        </button>
+      ) : null}
+    </div>
   );
 }
 
