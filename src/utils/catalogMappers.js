@@ -2,6 +2,19 @@ const DEFAULT_PRICE = 0.99;
 const DEFAULT_MATURITY_RATING = "16+";
 const ACCESS_EXPIRING_SOON_MS = 3 * 24 * 60 * 60 * 1000;
 
+export function formatCompactCount(value) {
+  const count = Number(value);
+
+  if (!Number.isFinite(count)) {
+    return String(value || 0);
+  }
+
+  return new Intl.NumberFormat("en", {
+    maximumFractionDigits: 1,
+    notation: count >= 1000 ? "compact" : "standard",
+  }).format(Math.max(0, count));
+}
+
 export function mapMovie(rawMovie = {}) {
   const id = String(rawMovie._id || rawMovie.id || rawMovie.slug || "");
   const title = rawMovie.title || "Untitled";
@@ -91,7 +104,9 @@ export function mapLanguage(rawLanguage = {}) {
 
 export function mapMovieDetails(rawDetails = {}) {
   const movie = mapMovie(rawDetails.movie || rawDetails);
-  const relatedMovies = (rawDetails.relatedMovies || []).map(mapMovie);
+  const relatedMovies = (rawDetails.relatedMovies || [])
+    .slice(0, 20)
+    .map(mapMovie);
 
   return {
     movie: {
@@ -112,8 +127,8 @@ export function mapMovieDetails(rawDetails = {}) {
       },
       moreLikeThis: relatedMovies,
       stats: {
-        likes: "0",
-        watchlist: "0",
+        likes: toNumber(rawDetails.stats?.likes, 0),
+        watchlist: toNumber(rawDetails.stats?.watchlist, 0),
       },
     },
     longevity: rawDetails.longevity || null,

@@ -102,6 +102,10 @@ export function useToggleMovieFavorite(movieId) {
           isFavorite: response?.action === "ADDED",
         }),
       );
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: catalogKeys.movie(movieId),
+      });
     },
   });
 }
@@ -119,6 +123,10 @@ export function useToggleMovieWatchlist(movieId) {
           inWatchlist: response?.action === "ADDED",
         }),
       );
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: catalogKeys.movie(movieId),
+      });
     },
   });
 }

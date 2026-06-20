@@ -1,7 +1,19 @@
 import {
   buildActiveMovieAccessMap,
+  formatCompactCount,
   mapMovieDetails,
 } from "./catalogMappers";
+
+describe("formatCompactCount", () => {
+  test.each([
+    [999, "999"],
+    [1000, "1K"],
+    [24800, "24.8K"],
+    [1200000, "1.2M"],
+  ])("formats %s as %s", (value, expected) => {
+    expect(formatCompactCount(value)).toBe(expected);
+  });
+});
 
 describe("buildActiveMovieAccessMap", () => {
   beforeAll(() => {
@@ -78,5 +90,21 @@ describe("mapMovieDetails hero media", () => {
       mode: "video",
       videoSrc: "https://iframe.videodelivery.net/trailer-id",
     });
+  });
+
+  test("maps audience totals and caps related movies at 20", () => {
+    const relatedMovies = Array.from({ length: 25 }, (_, index) => ({
+      ...baseMovie,
+      _id: `related-${index}`,
+      title: `Related ${index}`,
+    }));
+    const result = mapMovieDetails({
+      movie: baseMovie,
+      relatedMovies,
+      stats: { likes: 24800, watchlist: 1200 },
+    });
+
+    expect(result.movie.stats).toEqual({ likes: 24800, watchlist: 1200 });
+    expect(result.movie.moreLikeThis).toHaveLength(20);
   });
 });

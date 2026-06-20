@@ -14,6 +14,7 @@ import {
   useTrailerAccess,
 } from "../hooks/useCatalog";
 import { getAuthToken } from "../api/authToken";
+import { formatCompactCount } from "../utils/catalogMappers";
 import { resolveTrailerPlaybackSource } from "../utils/trailerPlayback";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
@@ -65,6 +66,10 @@ function MovieDetails() {
   const hasBannerPicture =
     movie.hasBannerPicture ?? Boolean(movie.bannerPicture || heroMovie.banner);
   const priceLabel = `$${movie.price.toFixed(2)}`;
+  const moreLikeThisGenre = movie.genre || movie.genres?.[0];
+  const moreLikeThisViewAllTo = moreLikeThisGenre
+    ? `/movies?genre=${encodeURIComponent(moreLikeThisGenre)}`
+    : "/movies";
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const [listActionError, setListActionError] = useState("");
   const [listActionNotice, setListActionNotice] = useState("");
@@ -381,8 +386,11 @@ function MovieDetails() {
           </div>
 
           <div className="movie-detail-more">
-            <ContentRow title="More Like This" viewAllTo="/movies">
-              {movie.moreLikeThis.map((relatedMovie) => (
+            <ContentRow
+              title="More Like This"
+              viewAllTo={moreLikeThisViewAllTo}
+            >
+              {movie.moreLikeThis.slice(0, 20).map((relatedMovie) => (
                 <MoviePosterCard
                   key={relatedMovie.id}
                   movie={relatedMovie}
@@ -464,7 +472,7 @@ function StatBlock({ icon, label, note, value }) {
   return (
     <div className="movie-detail-stat">
       <img src={icon} alt="" aria-hidden="true" />
-      <strong>{value}</strong>
+      <strong>{formatCompactCount(value)}</strong>
       <span>{label}</span>
       <small>{note}</small>
     </div>
