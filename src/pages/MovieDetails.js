@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Play, TvMinimalPlay } from "lucide-react";
+import { CheckCircle2, Play, TvMinimalPlay } from "lucide-react";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import ContentRow from "../components/movie/ContentRow";
@@ -67,6 +67,8 @@ function MovieDetails() {
   const priceLabel = `$${movie.price.toFixed(2)}`;
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const [listActionError, setListActionError] = useState("");
+  const [listActionNotice, setListActionNotice] = useState("");
+  const listActionNoticeTimer = useRef(null);
   const movieId = movie.backendId || movie.id;
   const canRequestTrailerAccess = isMongoObjectId(movieId);
   const isAuthenticated = Boolean(getAuthToken());
@@ -110,6 +112,15 @@ function MovieDetails() {
     }
   }, [canRequestTrailerAccess, isTrailerOpen, refetchTrailerAccess]);
 
+  useEffect(
+    () => () => {
+      if (listActionNoticeTimer.current) {
+        window.clearTimeout(listActionNoticeTimer.current);
+      }
+    },
+    [],
+  );
+
   const openTrailer = () => {
     setIsTrailerOpen(true);
   };
@@ -124,7 +135,19 @@ function MovieDetails() {
     });
   };
 
-  const runListAction = async (mutation, label) => {
+  const showListActionNotice = (message) => {
+    if (listActionNoticeTimer.current) {
+      window.clearTimeout(listActionNoticeTimer.current);
+    }
+
+    setListActionNotice(message);
+    listActionNoticeTimer.current = window.setTimeout(() => {
+      setListActionNotice("");
+      listActionNoticeTimer.current = null;
+    }, 3500);
+  };
+
+  const runListAction = async (mutation, collection) => {
     if (!isAuthenticated) {
       redirectToSignIn();
       return;
@@ -137,20 +160,42 @@ function MovieDetails() {
     setListActionError("");
 
     try {
-      await mutation.mutateAsync();
+      const response = await mutation.mutateAsync();
+      const wasAdded = response?.action === "ADDED";
+      const notice =
+        collection === "favorites"
+          ? wasAdded
+            ? "Movie favorited"
+            : "Movie removed from favorites"
+          : wasAdded
+            ? "Movie added to watchlist"
+            : "Movie removed from watchlist";
+
+      showListActionNotice(notice);
     } catch (error) {
       if (error?.status === 401 || error?.status === 403) {
         redirectToSignIn();
         return;
       }
 
-      setListActionError(`We could not update your ${label}. Try again.`);
+      setListActionError(`We could not update your ${collection}. Try again.`);
     }
   };
 
   return (
     <AppShell>
       <main className="movie-detail-page">
+        {listActionNotice ? (
+          <div
+            aria-live="polite"
+            className="movie-detail-toast"
+            role="status"
+          >
+            <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2.1} />
+            <span>{listActionNotice}</span>
+          </div>
+        ) : null}
+
         <section
           className="movie-detail-hero"
           aria-labelledby="movie-detail-title"

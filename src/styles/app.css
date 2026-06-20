@@ -652,16 +652,12 @@
 }
 
 .hero-banner h1 {
-  display: -webkit-box;
-  overflow: hidden;
   margin: 0;
   color: var(--color-text);
   font-size: clamp(52px, 6.6vw, 90px);
   line-height: 0.96;
   font-weight: 900;
   text-transform: uppercase;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .hero-banner .hero-banner__state h1 {
@@ -4708,6 +4704,45 @@
   color: #ff7e8d;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.movie-detail-toast {
+  position: fixed;
+  top: 86px;
+  right: var(--page-padding);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.54);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: rgba(5, 17, 29, 0.96);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  font-size: 14px;
+  font-weight: 600;
+  animation: movieDetailToastIn 180ms ease-out;
+}
+
+.movie-detail-toast svg {
+  flex: 0 0 auto;
+  color: var(--color-blue);
+}
+
+@keyframes movieDetailToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .movie-detail-body {
