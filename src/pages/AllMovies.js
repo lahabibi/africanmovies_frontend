@@ -20,9 +20,7 @@ const PAGE_SIZE = 24;
 const MOVIE_GRID_SKELETON_COUNT = 12;
 
 const sortOptions = [
-  { value: "popular", label: "Popular" },
-  { value: "newest", label: "Newest" },
-  { value: "rating", label: "Highest Rated" },
+  { value: "releaseYear", label: "Release Year" },
   { value: "title", label: "Title A-Z" },
 ];
 
@@ -33,7 +31,7 @@ function AllMovies() {
     [searchParams],
   );
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState("popular");
+  const [sortBy, setSortBy] = useState("releaseYear");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loadMoreRef = useRef(null);
   const isNewReleasesPage =
@@ -376,21 +374,26 @@ function sortMovies(movies, sortBy) {
 
   if (sortBy === "title") {
     return sortedMovies.sort((firstMovie, secondMovie) =>
-      firstMovie.title.localeCompare(secondMovie.title),
+      firstMovie.title.localeCompare(secondMovie.title, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      }),
     );
   }
 
-  if (sortBy === "newest") {
-    return sortedMovies.sort(
-      (firstMovie, secondMovie) =>
-        Number(secondMovie.year || 0) - Number(firstMovie.year || 0),
-    );
-  }
+  if (sortBy === "releaseYear") {
+    return sortedMovies.sort((firstMovie, secondMovie) => {
+      const yearDifference =
+        Number(secondMovie.year || 0) - Number(firstMovie.year || 0);
 
-  if (sortBy === "rating") {
-    return sortedMovies.sort(
-      (firstMovie, secondMovie) => secondMovie.rating - firstMovie.rating,
-    );
+      return (
+        yearDifference ||
+        firstMovie.title.localeCompare(secondMovie.title, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        })
+      );
+    });
   }
 
   return sortedMovies.sort(
