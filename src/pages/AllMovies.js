@@ -95,10 +95,7 @@ function AllMovies() {
         return true;
       }
 
-      return [movie.title, movie.genre, movie.year, ...(movie.languages || [])]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
+      return getMovieSearchText(movie).includes(normalizedQuery);
     });
   }, [
     query,
@@ -154,7 +151,7 @@ function AllMovies() {
               <span className="sr-only">Search movies</span>
               <input
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search movies..."
+                placeholder="Search by title or actor..."
                 type="search"
                 value={query}
               />
@@ -242,6 +239,34 @@ function AllMovies() {
       </main>
       <Footer />
     </AppShell>
+  );
+}
+
+function getMovieSearchText(movie) {
+  const actorNames = Array.isArray(movie.cast)
+    ? movie.cast.map(getActorName)
+    : [];
+
+  return [movie.title, ...actorNames]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getActorName(actor) {
+  if (typeof actor === "string") {
+    return actor;
+  }
+
+  if (!actor || typeof actor !== "object") {
+    return "";
+  }
+
+  return (
+    actor.name ||
+    actor.fullName ||
+    actor.actorName ||
+    [actor.firstName, actor.lastName].filter(Boolean).join(" ")
   );
 }
 
