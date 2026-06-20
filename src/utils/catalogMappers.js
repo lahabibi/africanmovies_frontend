@@ -103,20 +103,24 @@ export function mapLanguage(rawLanguage = {}) {
 }
 
 export function mapMovieDetails(rawDetails = {}) {
-  const movie = mapMovie(rawDetails.movie || rawDetails);
+  const rawMovie = rawDetails.movie || rawDetails;
+  const movie = mapMovie(rawMovie);
   const relatedMovies = (rawDetails.relatedMovies || [])
     .slice(0, 20)
     .map(mapMovie);
+  const tags = Array.isArray(rawMovie.tags)
+    ? rawMovie.tags.filter(Boolean)
+    : [rawMovie.genre, rawMovie.language, rawMovie.countryName].filter(Boolean);
 
   return {
     movie: {
       ...movie,
       about: {
-        cast: movie.cast.length ? movie.cast.join(", ") : "AfricanMovies Cast",
-        language: movie.language,
-        audio: "Stereo",
-        releaseYear: movie.year,
-        production: movie.countryName || "AfricanMovies",
+        cast: movie.cast.length ? movie.cast.join(", ") : "",
+        language: rawMovie.language || "",
+        audio: rawMovie.audio || rawMovie.audioFormat || "",
+        releaseYear: rawMovie.releaseYear || rawMovie.year || "",
+        production: rawMovie.production || rawMovie.countryName || "",
       },
       heroMovie: {
         mode: movie.hasBannerPicture ? "image" : "video",
@@ -126,6 +130,7 @@ export function mapMovieDetails(rawDetails = {}) {
         videoSrc: movie.hasBannerPicture ? null : movie.trailerUrl,
       },
       moreLikeThis: relatedMovies,
+      tags,
       stats: {
         likes: toNumber(rawDetails.stats?.likes, 0),
         watchlist: toNumber(rawDetails.stats?.watchlist, 0),

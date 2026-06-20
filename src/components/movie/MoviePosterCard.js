@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Film } from "lucide-react";
 import { useTrailerAccess } from "../../hooks/useCatalog";
 import { resolveTrailerPlaybackSource } from "../../utils/trailerPlayback";
 import starIcon from "../../assets/icons/ic_star.png";
@@ -33,6 +34,7 @@ function MoviePosterCard({
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const movieId = movie.backendId || movie.id;
   const canRequestTrailerAccess = isMongoObjectId(movieId);
+  const hasTrailer = Boolean(movie.trailerUrl || movie.heroMovie?.trailerUrl);
   const {
     data: trailerAccess,
     error: trailerError,
@@ -79,7 +81,18 @@ function MoviePosterCard({
     <>
       <article className="poster-card">
         <div className="poster-card__image">
-          <img src={movie.poster} alt={movie.title} />
+          {movie.poster ? (
+            <img src={movie.poster} alt={movie.title} />
+          ) : (
+            <div
+              aria-label={`Artwork unavailable for ${movie.title}`}
+              className="poster-card__artwork-empty"
+              role="img"
+            >
+              <Film aria-hidden="true" size={32} strokeWidth={1.4} />
+              <span>Artwork unavailable</span>
+            </div>
+          )}
 
           {access ? (
             <span
@@ -122,21 +135,27 @@ function MoviePosterCard({
               </div>
             ) : (
               <>
-                <div className="poster-card__overlay-actions">
+                <div
+                  className={`poster-card__overlay-actions${
+                    hasTrailer ? "" : " poster-card__overlay-actions--single"
+                  }`}
+                >
                   <Link
                     className="poster-card__action poster-card__action--primary"
                     to={watchPath}
                   >
                     Watch Now
                   </Link>
-                  <button
-                    aria-label={`Watch trailer for ${movie.title}`}
-                    className="poster-card__action poster-card__action--ghost"
-                    onClick={openTrailer}
-                    type="button"
-                  >
-                    Trailer
-                  </button>
+                  {hasTrailer ? (
+                    <button
+                      aria-label={`Watch trailer for ${movie.title}`}
+                      className="poster-card__action poster-card__action--ghost"
+                      onClick={openTrailer}
+                      type="button"
+                    >
+                      Trailer
+                    </button>
+                  ) : null}
                 </div>
 
                 <Link className="poster-card__details" to={detailsPath}>
@@ -179,7 +198,7 @@ function MoviePosterCard({
         ) : null}
       </article>
 
-      {isTrailerOpen ? (
+      {isTrailerOpen && hasTrailer ? (
         <TrailerModal
           error={trailerError}
           isLoading={isTrailerLoading}

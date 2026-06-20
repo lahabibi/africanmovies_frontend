@@ -107,4 +107,25 @@ describe("mapMovieDetails hero media", () => {
     expect(result.movie.stats).toEqual({ likes: 24800, watchlist: 1200 });
     expect(result.movie.moreLikeThis).toHaveLength(20);
   });
+
+  test("keeps missing optional details empty instead of inventing content", () => {
+    const result = mapMovieDetails({
+      movie: {
+        _id: baseMovie._id,
+        actor: [],
+        moviePictureURL: "",
+        movieTrailerURL: "",
+        title: "Sparse Movie",
+      },
+    });
+
+    expect(result.movie.about).toMatchObject({
+      audio: "",
+      cast: "",
+      production: "",
+      releaseYear: "",
+    });
+    expect(result.movie.tags).toEqual([]);
+    expect(result.movie.moreLikeThis).toEqual([]);
+  });
 });

@@ -1551,6 +1551,30 @@
     transform 260ms ease;
 }
 
+.poster-card__artwork-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  color: rgba(255, 255, 255, 0.48);
+  background:
+    radial-gradient(
+      circle at 50% 34%,
+      rgba(var(--color-blue-rgb), 0.16),
+      transparent 44%
+    ),
+    #09131f;
+  text-align: center;
+}
+
+.poster-card__artwork-empty span {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .poster-card__access-badge {
   position: absolute;
   top: 8px;
@@ -4724,6 +4748,28 @@
   transform: translate(-50%, -50%);
 }
 
+.movie-detail-hero__media-empty {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  background:
+    radial-gradient(
+      circle at 68% 42%,
+      rgba(var(--color-blue-rgb), 0.18),
+      transparent 22rem
+    ),
+    linear-gradient(110deg, #02070d 18%, #0a1624 64%, #030910 100%);
+}
+
+.movie-detail-hero__media-empty span {
+  font-size: 13px;
+}
+
 .movie-detail-hero__shade {
   position: absolute;
   inset: 0;
@@ -4836,6 +4882,13 @@
 
 .movie-detail-actions .button svg {
   flex: 0 0 auto;
+}
+
+.movie-detail-actions .button:disabled {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-muted);
+  cursor: not-allowed;
+  opacity: 0.64;
 }
 
 .movie-detail-icon-action {
@@ -5055,6 +5108,11 @@
   line-height: 1.45;
 }
 
+.movie-detail-fact dd.is-empty {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 .movie-detail-synopsis {
   padding: 0 clamp(18px, 2.6vw, 34px);
   border-right: 1px solid var(--color-border-soft);
@@ -5088,6 +5146,13 @@
   color: var(--color-muted-strong);
   background: rgba(2, 7, 13, 0.38);
   font-size: 13px;
+}
+
+.movie-detail-synopsis .movie-detail-tags-empty {
+  margin-top: 22px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-style: italic;
 }
 
 .movie-detail-stats {
@@ -5146,6 +5211,42 @@
 
 .movie-detail-more .content-row__scroller {
   padding-bottom: 6px;
+}
+
+.movie-detail-related-empty__content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 112px;
+  padding: 22px 24px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(7, 17, 29, 0.56);
+}
+
+.movie-detail-related-empty__content > span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.42);
+  border-radius: 999px;
+  color: var(--color-blue);
+  background: rgba(var(--color-blue-rgb), 0.08);
+}
+
+.movie-detail-related-empty__content strong {
+  display: block;
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.movie-detail-related-empty__content p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .placeholder-page {

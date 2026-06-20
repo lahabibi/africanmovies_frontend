@@ -68,8 +68,7 @@ function MovieDetails() {
     refetch: refetchMovieDetails,
   } = useMovieDetails(slug);
   const hasValidMovieId = isMongoObjectId(slug);
-  const isMovieNotFound =
-    !hasValidMovieId || movieDetailsError?.status === 404;
+  const isMovieNotFound = !hasValidMovieId || movieDetailsError?.status === 404;
 
   if (isMovieDetailsLoading) {
     return <MovieDetailsSkeleton />;
@@ -103,8 +102,13 @@ function MovieDetailsContent({ movie }) {
   const location = useLocation();
   const navigate = useNavigate();
   const heroMovie = movie.heroMovie || { mode: "image", banner: movie.banner };
+  const heroArtwork =
+    movie.bannerPicture || heroMovie.banner || movie.banner || "";
   const hasBannerPicture =
-    movie.hasBannerPicture ?? Boolean(movie.bannerPicture || heroMovie.banner);
+    Boolean(heroArtwork) &&
+    (movie.hasBannerPicture ??
+      Boolean(movie.bannerPicture || heroMovie.banner));
+  const hasTrailer = Boolean(movie.trailerUrl || heroMovie.trailerUrl);
   const priceLabel = `$${movie.price.toFixed(2)}`;
   const moreLikeThisGenre = movie.genre || movie.genres?.[0];
   const moreLikeThisViewAllTo = moreLikeThisGenre
@@ -117,12 +121,10 @@ function MovieDetailsContent({ movie }) {
   const movieId = movie.backendId || movie.id;
   const canRequestTrailerAccess = isMongoObjectId(movieId);
   const isAuthenticated = Boolean(getAuthToken());
-  const {
-    data: movieUserData,
-    isLoading: isMovieUserDataLoading,
-  } = useMovieUserData(movieId, {
-    enabled: isAuthenticated && canRequestTrailerAccess,
-  });
+  const { data: movieUserData, isLoading: isMovieUserDataLoading } =
+    useMovieUserData(movieId, {
+      enabled: isAuthenticated && canRequestTrailerAccess,
+    });
   const favoriteMutation = useToggleMovieFavorite(movieId);
   const watchlistMutation = useToggleMovieWatchlist(movieId);
   const isFavorite = Boolean(movieUserData?.isFavorite);
@@ -231,11 +233,7 @@ function MovieDetailsContent({ movie }) {
     <AppShell>
       <main className="movie-detail-page">
         {listActionNotice ? (
-          <div
-            aria-live="polite"
-            className="movie-detail-toast"
-            role="status"
-          >
+          <div aria-live="polite" className="movie-detail-toast" role="status">
             <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2.1} />
             <span>{listActionNotice}</span>
           </div>
@@ -248,7 +246,7 @@ function MovieDetailsContent({ movie }) {
           {hasBannerPicture ? (
             <img
               className="movie-detail-hero__image"
-              src={movie.bannerPicture || heroMovie.banner || movie.banner}
+              src={heroArtwork}
               alt=""
               aria-hidden="true"
             />
@@ -272,9 +270,11 @@ function MovieDetailsContent({ movie }) {
               {/* <span className="movie-detail-badge">{movie.quality}</span> */}
             </div>
 
-            <p className="movie-detail-hero__description">
-              {movie.description}
-            </p>
+            {movie.description ? (
+              <p className="movie-detail-hero__description">
+                {movie.description}
+              </p>
+            ) : null}
 
             <div className="movie-detail-actions">
               <Link
@@ -287,11 +287,12 @@ function MovieDetailsContent({ movie }) {
 
               <button
                 className="button button--ghost"
+                disabled={!hasTrailer}
                 onClick={openTrailer}
                 type="button"
               >
                 <TvMinimalPlay aria-hidden="true" size={21} strokeWidth={1.9} />
-                Watch Trailer
+                {hasTrailer ? "Watch Trailer" : "Trailer Unavailable"}
               </button>
 
               <button
@@ -351,7 +352,7 @@ function MovieDetailsContent({ movie }) {
           </div>
         </section>
 
-        {isTrailerOpen ? (
+        {isTrailerOpen && hasTrailer ? (
           <TrailerModal
             error={trailerError}
             isLoading={isTrailerLoading}
@@ -375,10 +376,20 @@ function MovieDetailsContent({ movie }) {
             >
               About
             </button>
-            <button type="button" role="tab" aria-selected="false">
+            <button
+              className="is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+            >
               Cast & Crew
             </button>
-            <button type="button" role="tab" aria-selected="false">
+            <button
+              className="is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+            >
               More Like This
             </button>
           </div>
@@ -395,18 +406,27 @@ function MovieDetailsContent({ movie }) {
                     />
                     {aboutFieldLabels[field]}
                   </dt>
-                  <dd>{movie.about[field]}</dd>
+                  <dd className={!movie.about[field] ? "is-empty" : ""}>
+                    {movie.about[field] || "Not available"}
+                  </dd>
                 </div>
               ))}
             </dl>
 
             <div className="movie-detail-synopsis">
-              <p>{movie.synopsis}</p>
-              <div className="movie-detail-tags" aria-label="Tags">
-                {movie.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
+              <p>
+                {movie.synopsis ||
+                  "A synopsis is not available for this movie yet."}
+              </p>
+              {movie.tags.length ? (
+                <div className="movie-detail-tags" aria-label="Tags">
+                  {movie.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="movie-detail-tags-empty">No tags available.</p>
+              )}
             </div>
 
             <div className="movie-detail-stats" aria-label="Audience activity">
@@ -426,18 +446,22 @@ function MovieDetailsContent({ movie }) {
           </div>
 
           <div className="movie-detail-more">
-            <ContentRow
-              title="More Like This"
-              viewAllTo={moreLikeThisViewAllTo}
-            >
-              {movie.moreLikeThis.slice(0, 20).map((relatedMovie) => (
-                <MoviePosterCard
-                  key={relatedMovie.id}
-                  movie={relatedMovie}
-                  showMeta={false}
-                />
-              ))}
-            </ContentRow>
+            {movie.moreLikeThis.length ? (
+              <ContentRow
+                title="More Like This"
+                viewAllTo={moreLikeThisViewAllTo}
+              >
+                {movie.moreLikeThis.slice(0, 20).map((relatedMovie) => (
+                  <MoviePosterCard
+                    key={relatedMovie.id}
+                    movie={relatedMovie}
+                    showMeta={false}
+                  />
+                ))}
+              </ContentRow>
+            ) : (
+              <MovieDetailsRelatedEmpty viewAllTo={moreLikeThisViewAllTo} />
+            )}
           </div>
         </section>
       </main>
@@ -481,10 +505,7 @@ function MovieDetailsSkeleton() {
               <div key={columnIndex}>
                 {Array.from({ length: columnIndex === 2 ? 3 : 5 }).map(
                   (_, rowIndex) => (
-                    <span
-                      className="movie-detail-skeleton"
-                      key={rowIndex}
-                    />
+                    <span className="movie-detail-skeleton" key={rowIndex} />
                   ),
                 )}
               </div>
@@ -548,6 +569,31 @@ function MovieDetailsRequestState({ message, onRetry, title, variant }) {
   );
 }
 
+function MovieDetailsRelatedEmpty({ viewAllTo }) {
+  return (
+    <section
+      aria-labelledby="more-like-this-empty-title"
+      className="content-row movie-detail-related-empty"
+    >
+      <div className="content-row__header">
+        <h2 id="more-like-this-empty-title">More Like This</h2>
+        <div className="content-row__actions">
+          <Link to={viewAllTo}>View All</Link>
+        </div>
+      </div>
+      <div className="movie-detail-related-empty__content">
+        <span>
+          <Film aria-hidden="true" size={25} strokeWidth={1.7} />
+        </span>
+        <div>
+          <strong>No similar titles yet</strong>
+          <p>More movies from this genre will appear here when available.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MovieDetailTrailerBackground({ movie }) {
   const trailerUrl = movie.trailerUrl || movie.heroMovie?.trailerUrl || "";
 
@@ -578,13 +624,26 @@ function MovieDetailTrailerBackground({ movie }) {
     );
   }
 
+  if (movie.poster) {
+    return (
+      <img
+        aria-hidden="true"
+        alt=""
+        className="movie-detail-hero__image"
+        src={movie.poster}
+      />
+    );
+  }
+
   return (
-    <img
-      aria-hidden="true"
-      alt=""
-      className="movie-detail-hero__image"
-      src={movie.poster}
-    />
+    <div
+      aria-label="Artwork unavailable"
+      className="movie-detail-hero__media-empty"
+      role="img"
+    >
+      <Film aria-hidden="true" size={46} strokeWidth={1.3} />
+      <span>Artwork unavailable</span>
+    </div>
   );
 }
 
