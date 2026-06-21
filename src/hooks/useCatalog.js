@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAuthToken } from "../api/authToken";
+import { getAuthToken, getStoredAuthUser } from "../api/authToken";
 import {
   getGenre,
   getGenres,
+  getFavoriteMovies,
   getHomeData,
   getLanguage,
   getLanguages,
@@ -12,6 +13,7 @@ import {
   getMovies,
   getMoviesByCategory,
   getTrailerAccess,
+  getWatchlistMovies,
   searchMovies,
   toggleMovieFavorite,
   toggleMovieWatchlist,
@@ -22,6 +24,7 @@ import {
   mapLanguage,
   mapMovie,
   mapMovieDetails,
+  mapSavedMovie,
 } from "../utils/catalogMappers";
 
 export const catalogKeys = {
@@ -40,6 +43,12 @@ export const catalogKeys = {
     "category",
     category,
     value,
+  ],
+  savedMovies: (collectionType, ownerKey) => [
+    ...catalogKeys.movies(),
+    "saved",
+    collectionType,
+    ...(ownerKey ? [ownerKey] : []),
   ],
   search: (query) => [...catalogKeys.all, "search", query],
   trailerAccess: (movieId) => [...catalogKeys.movie(movieId), "trailerAccess"],
@@ -70,6 +79,65 @@ export function useLatestMovies(limit = 50, { enabled = true } = {}) {
     queryFn: async () => (await getLatestMovies(limit)).map(mapMovie),
     queryKey: catalogKeys.latestMovies(limit),
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useSavedMovies(collectionType) {
+  const token = getAuthToken();
+  const storedUser = getStoredAuthUser();
+  const ownerKey = storedUser?._id || storedUser?.id || "authenticated";
+
+  return useQuery({
+    enabled:
+      Boolean(token) &&
+      (collectionType === "favorites" || collectionType === "watchlist"),
+    queryFn: async () => {
+      const entries =
+        collectionType === "favorites"
+          ? await getFavoriteMovies()
+          : await getWatchlistMovies();
+
+      return entries.map(mapSavedMovie).filter(Boolean);
+    },
+    queryKey: catalogKeys.savedMovies(collectionType, ownerKey),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useRemoveSavedMovie(collectionType) {
+  const queryClient = useQueryClient();
+  const storedUser = getStoredAuthUser();
+  const ownerKey = storedUser?._id || storedUser?.id || "authenticated";
+
+  return useMutation({
+    mutationFn: (movieId) =>
+      collectionType === "favorites"
+        ? toggleMovieFavorite(movieId)
+        : toggleMovieWatchlist(movieId),
+    onSuccess: (response, movieId) => {
+      if (response?.action !== "REMOVED") {
+        return;
+      }
+
+      queryClient.setQueryData(
+        catalogKeys.savedMovies(collectionType, ownerKey),
+        (currentMovies = []) =>
+          currentMovies.filter((movie) => movie.id !== movieId),
+      );
+      queryClient.setQueryData(
+        catalogKeys.movieUserData(movieId),
+        (currentData = {}) => ({
+          ...currentData,
+          ...(collectionType === "favorites"
+            ? { isFavorite: false }
+            : { inWatchlist: false }),
+        }),
+      );
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: catalogKeys.movie(movieId),
+      });
+    },
   });
 }
 
@@ -106,6 +174,9 @@ export function useToggleMovieFavorite(movieId) {
         exact: true,
         queryKey: catalogKeys.movie(movieId),
       });
+      queryClient.invalidateQueries({
+        queryKey: catalogKeys.savedMovies("favorites"),
+      });
     },
   });
 }
@@ -126,6 +197,9 @@ export function useToggleMovieWatchlist(movieId) {
       queryClient.invalidateQueries({
         exact: true,
         queryKey: catalogKeys.movie(movieId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: catalogKeys.savedMovies("watchlist"),
       });
     },
   });

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import {
+  AlertCircle,
   Bookmark,
   CheckCircle2,
   ChevronDown,
   Heart,
+  RefreshCw,
   Search,
   SearchX,
 } from "lucide-react";
@@ -12,7 +14,10 @@ import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { savedMovieCollections } from "../data/savedMoviesData";
+import { getAuthToken } from "../api/authToken";
+import { useRemoveSavedMovie, useSavedMovies } from "../hooks/useCatalog";
+import { useActiveOrders } from "../hooks/useOrders";
+import { buildActiveMovieAccessMap } from "../utils/catalogMappers";
 
 const collectionConfig = {
   favorites: {
@@ -38,60 +43,93 @@ const collectionConfig = {
 const sortOptions = [
   { value: "recent", label: "Recently Added" },
   { value: "title", label: "Title A-Z" },
-  { value: "releaseYear", label: "Release Year" },
 ];
 
+const GRID_SKELETON_COUNT = 10;
+
 function SavedMovies({ collectionType }) {
+  const location = useLocation();
   const config = collectionConfig[collectionType] || collectionConfig.favorites;
-  const [movies, setMovies] = useState(
-    () => savedMovieCollections[collectionType] || [],
+  const favoritesQuery = useSavedMovies("favorites");
+  const watchlistQuery = useSavedMovies("watchlist");
+  const activeOrdersQuery = useActiveOrders();
+  const removeMutation = useRemoveSavedMovie(collectionType);
+  const activeCollectionQuery =
+    collectionType === "watchlist" ? watchlistQuery : favoritesQuery;
+  const movies = useMemo(
+    () => activeCollectionQuery.data || [],
+    [activeCollectionQuery.data],
   );
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("recent");
-  const [notice, setNotice] = useState("");
-  const noticeTimer = useRef(null);
+  const [feedback, setFeedback] = useState(null);
+  const feedbackTimer = useRef(null);
+  const isAuthenticated = Boolean(getAuthToken());
+  const isPageLoading =
+    activeCollectionQuery.isLoading || activeOrdersQuery.isLoading;
+  const isPageError = activeCollectionQuery.isError;
 
-  useEffect(() => {
-    setMovies(savedMovieCollections[collectionType] || []);
-    setQuery("");
-    setSortBy("recent");
-  }, [collectionType]);
-
-  useEffect(
-    () => () => {
-      if (noticeTimer.current) {
-        window.clearTimeout(noticeTimer.current);
-      }
-    },
-    [],
+  const accessByMovieId = useMemo(
+    () => buildActiveMovieAccessMap(activeOrdersQuery.data || [], movies),
+    [activeOrdersQuery.data, movies],
   );
 
   const visibleMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const matchingMovies = normalizedQuery
-      ? movies.filter((movie) => getMovieSearchText(movie).includes(normalizedQuery))
+      ? movies.filter((movie) =>
+          getMovieSearchText(movie).includes(normalizedQuery),
+        )
       : movies;
 
     return sortSavedMovies(matchingMovies, sortBy);
   }, [movies, query, sortBy]);
 
-  const showNotice = (message) => {
-    if (noticeTimer.current) {
-      window.clearTimeout(noticeTimer.current);
+  useEffect(() => {
+    setQuery("");
+    setSortBy("recent");
+    setFeedback(null);
+  }, [collectionType]);
+
+  useEffect(
+    () => () => {
+      if (feedbackTimer.current) {
+        window.clearTimeout(feedbackTimer.current);
+      }
+    },
+    [],
+  );
+
+  if (!isAuthenticated) {
+    return <Navigate replace state={{ from: location.pathname }} to="/signin" />;
+  }
+
+  const showFeedback = (message, variant = "success") => {
+    if (feedbackTimer.current) {
+      window.clearTimeout(feedbackTimer.current);
     }
 
-    setNotice(message);
-    noticeTimer.current = window.setTimeout(() => {
-      setNotice("");
-      noticeTimer.current = null;
+    setFeedback({ message, variant });
+    feedbackTimer.current = window.setTimeout(() => {
+      setFeedback(null);
+      feedbackTimer.current = null;
     }, 3500);
   };
 
   const removeMovie = (movieId) => {
-    setMovies((currentMovies) =>
-      currentMovies.filter((movie) => movie.id !== movieId),
-    );
-    showNotice(config.removedMessage);
+    removeMutation.mutate(movieId, {
+      onError: () => {
+        showFeedback("We could not remove this movie. Try again.", "error");
+      },
+      onSuccess: (response) => {
+        if (response?.action === "REMOVED") {
+          showFeedback(config.removedMessage);
+          return;
+        }
+
+        showFeedback("The collection changed. Please refresh and try again.", "error");
+      },
+    });
   };
 
   return (
@@ -106,10 +144,18 @@ function SavedMovies({ collectionType }) {
           className="profile-content saved-movies-content"
           aria-labelledby="saved-movies-title"
         >
-          {notice ? (
-            <div className="saved-movies-toast" role="status" aria-live="polite">
-              <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2} />
-              <span>{notice}</span>
+          {feedback ? (
+            <div
+              aria-live="polite"
+              className={`saved-movies-toast saved-movies-toast--${feedback.variant}`}
+              role={feedback.variant === "error" ? "alert" : "status"}
+            >
+              {feedback.variant === "error" ? (
+                <AlertCircle aria-hidden="true" size={20} strokeWidth={2} />
+              ) : (
+                <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2} />
+              )}
+              <span>{feedback.message}</span>
             </div>
           ) : null}
 
@@ -118,9 +164,18 @@ function SavedMovies({ collectionType }) {
             <p>{config.description}</p>
           </header>
 
-          <CollectionTabs activeType={collectionType} movies={movies} />
+          <CollectionTabs
+            activeType={collectionType}
+            favoritesCount={favoritesQuery.data?.length}
+            isFavoritesLoading={favoritesQuery.isLoading}
+            isWatchlistLoading={watchlistQuery.isLoading}
+            watchlistCount={watchlistQuery.data?.length}
+          />
 
-          <div className="saved-movies-toolbar" aria-label={`${config.label} controls`}>
+          <div
+            className="saved-movies-toolbar"
+            aria-label={`${config.label} controls`}
+          >
             <label className="movies-search">
               <span className="sr-only">Search {config.label.toLowerCase()}</span>
               <input
@@ -149,33 +204,64 @@ function SavedMovies({ collectionType }) {
             </label>
           </div>
 
-          <section className="saved-movies-results" aria-label={`${config.label} movies`}>
+          <section
+            className="saved-movies-results"
+            aria-label={`${config.label} movies`}
+          >
             <div className="saved-movies-summary">
               <strong>
-                {movies.length} {movies.length === 1 ? "title" : "titles"}
+                {isPageLoading
+                  ? "Loading titles..."
+                  : isPageError
+                    ? "Titles unavailable"
+                    : `${movies.length} ${movies.length === 1 ? "title" : "titles"}`}
               </strong>
-              {query.trim() ? <span>{visibleMovies.length} matching</span> : null}
+              {!isPageLoading && !isPageError && query.trim() ? (
+                <span>{visibleMovies.length} matching</span>
+              ) : null}
             </div>
 
-            {visibleMovies.length ? (
+            {isPageLoading ? <SavedMoviesGridSkeleton /> : null}
+
+            {!isPageLoading && isPageError ? (
+              <SavedMoviesError onRetry={activeCollectionQuery.refetch} />
+            ) : null}
+
+            {!isPageLoading && !isPageError && activeOrdersQuery.isError ? (
+              <div className="saved-movies-access-warning" role="status">
+                <span>Library status is temporarily unavailable.</span>
+                <button onClick={() => activeOrdersQuery.refetch()} type="button">
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
+            {!isPageLoading && !isPageError && visibleMovies.length ? (
               <div className="movies-grid saved-movies-grid">
                 {visibleMovies.map((movie) => (
                   <SavedMovieCard
+                    access={accessByMovieId.get(movie.id) || null}
                     collectionType={collectionType}
+                    isRemoving={
+                      removeMutation.isPending &&
+                      removeMutation.variables === movie.id
+                    }
                     key={movie.id}
                     movie={movie}
                     onRemove={removeMovie}
                   />
                 ))}
               </div>
-            ) : (
+            ) : null}
+
+            {!isPageLoading && !isPageError && !visibleMovies.length ? (
               <SavedMoviesEmpty
                 config={config}
                 hasMovies={movies.length > 0}
                 onClearSearch={() => setQuery("")}
                 query={query}
               />
-            )}
+            ) : null}
           </section>
         </section>
       </main>
@@ -184,16 +270,13 @@ function SavedMovies({ collectionType }) {
   );
 }
 
-function CollectionTabs({ activeType, movies }) {
-  const favoritesCount =
-    activeType === "favorites"
-      ? movies.length
-      : savedMovieCollections.favorites.length;
-  const watchlistCount =
-    activeType === "watchlist"
-      ? movies.length
-      : savedMovieCollections.watchlist.length;
-
+function CollectionTabs({
+  activeType,
+  favoritesCount,
+  isFavoritesLoading,
+  isWatchlistLoading,
+  watchlistCount,
+}) {
   return (
     <nav className="saved-movies-tabs" aria-label="Saved movie collections">
       <Link
@@ -203,7 +286,7 @@ function CollectionTabs({ activeType, movies }) {
       >
         <Heart aria-hidden="true" size={18} strokeWidth={1.9} />
         Favorites
-        <span>{favoritesCount}</span>
+        <span>{isFavoritesLoading ? "..." : favoritesCount || 0}</span>
       </Link>
       <Link
         aria-current={activeType === "watchlist" ? "page" : undefined}
@@ -212,28 +295,81 @@ function CollectionTabs({ activeType, movies }) {
       >
         <Bookmark aria-hidden="true" size={18} strokeWidth={1.9} />
         Watchlist
-        <span>{watchlistCount}</span>
+        <span>{isWatchlistLoading ? "..." : watchlistCount || 0}</span>
       </Link>
     </nav>
   );
 }
 
-function SavedMovieCard({ collectionType, movie, onRemove }) {
+function SavedMovieCard({
+  access,
+  collectionType,
+  isRemoving,
+  movie,
+  onRemove,
+}) {
   const Icon = collectionType === "favorites" ? Heart : Bookmark;
   const collectionLabel =
     collectionType === "favorites" ? "favorites" : "watchlist";
 
   return (
     <div className="saved-movie-card">
-      <MoviePosterCard movie={movie} />
+      <MoviePosterCard access={access} movie={movie} />
       <button
         aria-label={`Remove ${movie.title} from ${collectionLabel}`}
         className="saved-movie-card__remove"
+        disabled={isRemoving}
         onClick={() => onRemove(movie.id)}
         title={`Remove from ${collectionLabel}`}
         type="button"
       >
-        <Icon aria-hidden="true" fill="currentColor" size={17} strokeWidth={1.8} />
+        {isRemoving ? (
+          <RefreshCw
+            aria-hidden="true"
+            className="saved-movie-card__remove-spinner"
+            size={16}
+            strokeWidth={2}
+          />
+        ) : (
+          <Icon
+            aria-hidden="true"
+            fill="currentColor"
+            size={17}
+            strokeWidth={1.8}
+          />
+        )}
+      </button>
+    </div>
+  );
+}
+
+function SavedMoviesGridSkeleton() {
+  return (
+    <div
+      aria-label="Loading saved movies"
+      className="movies-grid movies-grid--loading saved-movies-grid"
+    >
+      {Array.from({ length: GRID_SKELETON_COUNT }).map((_, index) => (
+        <article className="poster-card movies-card-skeleton" key={index}>
+          <span className="movies-card-skeleton__poster" />
+          <span className="movies-card-skeleton__meta" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function SavedMoviesError({ onRetry }) {
+  return (
+    <div className="saved-movies-empty saved-movies-empty--error" role="alert">
+      <span>
+        <AlertCircle aria-hidden="true" size={28} strokeWidth={1.7} />
+      </span>
+      <h2>Something went wrong</h2>
+      <p>We could not load this collection right now.</p>
+      <button onClick={() => onRetry()} type="button">
+        <RefreshCw aria-hidden="true" size={17} strokeWidth={2} />
+        Try Again
       </button>
     </div>
   );
@@ -266,12 +402,31 @@ function SavedMoviesEmpty({ config, hasMovies, onClearSearch, query }) {
 }
 
 function getMovieSearchText(movie) {
-  const cast = Array.isArray(movie.cast) ? movie.cast : [];
+  const actorNames = Array.isArray(movie.cast)
+    ? movie.cast.map(getActorName)
+    : [];
 
-  return [movie.title, ...cast]
+  return [movie.title, ...actorNames]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function getActorName(actor) {
+  if (typeof actor === "string") {
+    return actor;
+  }
+
+  if (!actor || typeof actor !== "object") {
+    return "";
+  }
+
+  return (
+    actor.name ||
+    actor.fullName ||
+    actor.actorName ||
+    [actor.firstName, actor.lastName].filter(Boolean).join(" ")
+  );
 }
 
 function sortSavedMovies(movies, sortBy) {
@@ -286,18 +441,14 @@ function sortSavedMovies(movies, sortBy) {
     );
   }
 
-  if (sortBy === "releaseYear") {
-    return sortedMovies.sort(
-      (firstMovie, secondMovie) =>
-        Number(secondMovie.year || 0) - Number(firstMovie.year || 0) ||
-        firstMovie.title.localeCompare(secondMovie.title),
-    );
-  }
-
   return sortedMovies.sort(
     (firstMovie, secondMovie) =>
-      new Date(secondMovie.savedAt).getTime() -
-      new Date(firstMovie.savedAt).getTime(),
+      new Date(secondMovie.savedAt || 0).getTime() -
+        new Date(firstMovie.savedAt || 0).getTime() ||
+      firstMovie.title.localeCompare(secondMovie.title, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      }),
   );
 }
 

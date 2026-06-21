@@ -2,6 +2,7 @@ import {
   buildActiveMovieAccessMap,
   formatCompactCount,
   mapMovieDetails,
+  mapSavedMovie,
 } from "./catalogMappers";
 
 describe("formatCompactCount", () => {
@@ -12,6 +13,32 @@ describe("formatCompactCount", () => {
     [1200000, "1.2M"],
   ])("formats %s as %s", (value, expected) => {
     expect(formatCompactCount(value)).toBe(expected);
+  });
+});
+
+describe("mapSavedMovie", () => {
+  test("maps a populated saved-movie record and preserves its saved date", () => {
+    const movie = mapSavedMovie({
+      _id: "saved-entry",
+      creationDate: "2026-06-21T10:00:00.000Z",
+      movieId: {
+        _id: "6a1e54e7be4244a731af7b07",
+        actor: ["Actor One"],
+        genre: "Drama",
+        title: "Saved Story",
+      },
+    });
+
+    expect(movie).toMatchObject({
+      id: "6a1e54e7be4244a731af7b07",
+      savedAt: "2026-06-21T10:00:00.000Z",
+      savedEntryId: "saved-entry",
+      title: "Saved Story",
+    });
+  });
+
+  test("ignores saved records whose movie was removed", () => {
+    expect(mapSavedMovie({ _id: "orphan", movieId: null })).toBeNull();
   });
 });
 

@@ -8,6 +8,14 @@ export function getMovies() {
   return apiClient("/movies");
 }
 
+export function getFavoriteMovies() {
+  return apiClient("/movies/my/favorite");
+}
+
+export function getWatchlistMovies() {
+  return apiClient("/movies/my/watchlist");
+}
+
 export function getLatestMovies(limit = 50) {
   return apiClient(`/movies/data/latest?limit=${encodeURIComponent(limit)}`);
 }

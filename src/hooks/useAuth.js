@@ -74,6 +74,8 @@ export function useLogout() {
       clearAuthSession();
       queryClient.setQueryData(authKeys.currentUser, null);
       queryClient.removeQueries({ queryKey: authKeys.currentUser });
+      queryClient.removeQueries({ queryKey: ["catalog", "movies", "saved"] });
+      queryClient.removeQueries({ queryKey: ["orders"] });
     },
   });
 }

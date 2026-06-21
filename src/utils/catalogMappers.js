@@ -63,6 +63,36 @@ export function mapMovie(rawMovie = {}) {
   };
 }
 
+export function mapSavedMovie(rawEntry = {}) {
+  const rawMovie =
+    rawEntry.movieId && typeof rawEntry.movieId === "object"
+      ? rawEntry.movieId
+      : rawEntry.movie && typeof rawEntry.movie === "object"
+        ? rawEntry.movie
+        : null;
+
+  if (!rawMovie) {
+    return null;
+  }
+
+  const movie = mapMovie(rawMovie);
+
+  if (!movie.id) {
+    return null;
+  }
+
+  return {
+    ...movie,
+    savedAt:
+      rawEntry.creationDate ||
+      rawEntry.createdAt ||
+      rawEntry.updatedAt ||
+      rawMovie.uploadDate ||
+      "",
+    savedEntryId: String(rawEntry._id || rawEntry.id || ""),
+  };
+}
+
 export function mapGenre(rawGenre = {}) {
   const title = rawGenre.name || rawGenre.title || "Genre";
   const rawCount = [
