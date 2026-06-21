@@ -10,6 +10,7 @@ import OtpPage from "./pages/OtpPage";
 import PaymentDetails from "./pages/PaymentDetails";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Profile from "./pages/Profile";
+import SavedMovies from "./pages/SavedMovies";
 import "./styles/app.css";
 
 function App() {
@@ -33,8 +34,14 @@ function App() {
           path="/payment-details"
           element={<PaymentDetails />}
         />
-        <Route path="/favorites" element={<PlaceholderPage title="Favorites" />} />
-        <Route path="/watchlist" element={<PlaceholderPage title="Watchlist" />} />
+        <Route
+          path="/favorites"
+          element={<SavedMovies collectionType="favorites" />}
+        />
+        <Route
+          path="/watchlist"
+          element={<SavedMovies collectionType="watchlist" />}
+        />
         <Route path="/devices" element={<PlaceholderPage title="Devices" />} />
         <Route
           path="/purchase-history"

@@ -1,48 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Bell,
   Camera,
-  Captions,
   ChevronDown,
-  CircleHelp,
-  CreditCard,
   ExternalLink,
   Headphones,
   Laptop,
-  LockKeyhole,
   LogOut,
-  MessageCircle,
   Monitor,
   MoreVertical,
   Pencil,
-  PlayCircle,
-  ReceiptText,
-  Settings,
   Smartphone,
-  UserRound,
 } from "lucide-react";
+import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import { currentUser } from "../data/sessionData";
-import {
-  activeDevices,
-  profileInfo,
-  profileSidebarSections,
-} from "../data/profileData";
+import { activeDevices, profileInfo } from "../data/profileData";
 import Footer from "../components/layout/Footer";
-
-const sidebarIcons = {
-  bell: Bell,
-  captions: Captions,
-  "credit-card": CreditCard,
-  help: CircleHelp,
-  history: ReceiptText,
-  lock: LockKeyhole,
-  message: MessageCircle,
-  play: PlayCircle,
-  settings: Settings,
-  user: UserRound,
-};
 
 const deviceIcons = {
   laptop: Laptop,
@@ -56,7 +30,7 @@ function Profile() {
   return (
     <AppShell>
       <main className="profile-page">
-        <ProfileSidebar />
+        <AccountSidebar activeId="profile" ariaLabel="Profile settings" />
 
         <section className="profile-content" aria-labelledby="profile-title">
           <header className="profile-heading">
@@ -82,35 +56,6 @@ function Profile() {
       ) : null}
       <Footer />
     </AppShell>
-  );
-}
-
-function ProfileSidebar() {
-  return (
-    <aside className="profile-sidebar" aria-label="Profile settings">
-      {profileSidebarSections.map((section) => (
-        <section className="profile-sidebar__section" key={section.id}>
-          <h2>{section.title}</h2>
-          <nav aria-label={section.title}>
-            {section.links.map((link) => {
-              const Icon = sidebarIcons[link.icon];
-              const isActive = link.id === "profile";
-
-              return (
-                <Link
-                  className={isActive ? "is-active" : undefined}
-                  key={link.id}
-                  to={link.to}
-                >
-                  <Icon aria-hidden="true" size={21} strokeWidth={1.8} />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </section>
-      ))}
-    </aside>
   );
 }
 

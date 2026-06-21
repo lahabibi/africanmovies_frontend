@@ -1,90 +1,20 @@
 import { Link } from "react-router-dom";
 import {
-  Bell,
-  Bookmark,
-  Captions,
-  CircleHelp,
-  CreditCard,
   ExternalLink,
   Headphones,
-  Heart,
   LockKeyhole,
-  MessageCircle,
   MoreVertical,
-  PlayCircle,
-  Settings,
-  UserRound,
 } from "lucide-react";
+import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import { paymentMethods } from "../data/paymentData";
-
-const paymentSidebarSections = [
-  {
-    id: "account",
-    title: "Account",
-    links: [
-      { id: "profile", label: "Profile", to: "/profile", icon: UserRound },
-      {
-        id: "account-settings",
-        label: "Account Settings",
-        to: "/account-settings",
-        icon: Settings,
-      },
-      {
-        id: "payment-details",
-        label: "Payment Details",
-        to: "/payment-details",
-        icon: CreditCard,
-      },
-      {
-        id: "favorited-list",
-        label: "Favorited List",
-        to: "/favorites",
-        icon: Heart,
-      },
-      {
-        id: "watchlist",
-        label: "Watchlist",
-        to: "/watchlist",
-        icon: Bookmark,
-      },
-    ],
-  },
-  {
-    id: "preferences",
-    title: "Preferences",
-    links: [
-      { id: "playback", label: "Playback", to: "/playback", icon: PlayCircle },
-      {
-        id: "subtitles-audio",
-        label: "Subtitles & Audio",
-        to: "/subtitles-audio",
-        icon: Captions,
-      },
-      {
-        id: "notifications",
-        label: "Notifications",
-        to: "/notifications",
-        icon: Bell,
-      },
-    ],
-  },
-  {
-    id: "support",
-    title: "Support",
-    links: [
-      { id: "help-center", label: "Help Center", to: "/support", icon: CircleHelp },
-      { id: "contact-us", label: "Contact Us", to: "/contact-us", icon: MessageCircle },
-    ],
-  },
-];
 
 function PaymentDetails() {
   return (
     <AppShell>
       <main className="profile-page payment-page">
-        <PaymentSidebar />
+        <AccountSidebar activeId="payment-details" ariaLabel="Payment settings" />
 
         <section className="profile-content" aria-labelledby="payment-title">
           <div className="profile-layout">
@@ -103,35 +33,6 @@ function PaymentDetails() {
       </main>
       <Footer />
     </AppShell>
-  );
-}
-
-function PaymentSidebar() {
-  return (
-    <aside className="profile-sidebar" aria-label="Payment settings">
-      {paymentSidebarSections.map((section) => (
-        <section className="profile-sidebar__section" key={section.id}>
-          <h2>{section.title}</h2>
-          <nav aria-label={section.title}>
-            {section.links.map((link) => {
-              const Icon = link.icon;
-              const isActive = link.id === "payment-details";
-
-              return (
-                <Link
-                  className={isActive ? "is-active" : undefined}
-                  key={link.id}
-                  to={link.to}
-                >
-                  <Icon aria-hidden="true" size={21} strokeWidth={1.8} />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </section>
-      ))}
-    </aside>
   );
 }
 
