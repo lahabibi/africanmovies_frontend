@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useTrailerAccess } from "../../hooks/useCatalog";
 import { resolveTrailerPlaybackSource } from "../../utils/trailerPlayback";
+import { getWatchActionLabel } from "../../utils/watchActionLabel";
 import clockIcon from "../../assets/icons/ic_clock.png";
 import playIcon from "../../assets/icons/ic_play_button.png";
 import playTv from "../../assets/icons/ic_play_tv.png";
@@ -93,7 +94,7 @@ function HeroDetails({ movie, isLive = false }) {
         <div className="hero-banner__actions">
           <Link className="button button--primary" to={detailsPath}>
             <img src={playIcon} alt="" aria-hidden="true" />
-            <span>Watch for ${movie.price.toFixed(2)}</span>
+            <span>{getWatchActionLabel(movie, "Watch for")}</span>
           </Link>
           <button
             className="button button--ghost"

@@ -23,6 +23,7 @@ import {
 import { getAuthToken } from "../api/authToken";
 import { formatCompactCount } from "../utils/catalogMappers";
 import { resolveTrailerPlaybackSource } from "../utils/trailerPlayback";
+import { getWatchActionLabel } from "../utils/watchActionLabel";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
 import languageIcon from "../assets/icons/ic_language.png";
@@ -109,7 +110,7 @@ function MovieDetailsContent({ movie }) {
     (movie.hasBannerPicture ??
       Boolean(movie.bannerPicture || heroMovie.banner));
   const hasTrailer = Boolean(movie.trailerUrl || heroMovie.trailerUrl);
-  const priceLabel = `$${movie.price.toFixed(2)}`;
+  const watchActionLabel = getWatchActionLabel(movie);
   const moreLikeThisGenre = movie.genre || movie.genres?.[0];
   const moreLikeThisViewAllTo = moreLikeThisGenre
     ? `/movies?genre=${encodeURIComponent(moreLikeThisGenre)}`
@@ -282,7 +283,7 @@ function MovieDetailsContent({ movie }) {
                 to={`/movies/${movie.slug}?watch=now`}
               >
                 <Play aria-hidden="true" size={19} fill="currentColor" />
-                Watch Now {priceLabel}
+                {watchActionLabel}
               </Link>
 
               <button
