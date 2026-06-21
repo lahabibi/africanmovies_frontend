@@ -11,6 +11,7 @@ import PaymentDetails from "./pages/PaymentDetails";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Profile from "./pages/Profile";
 import SavedMovies from "./pages/SavedMovies";
+import Search from "./pages/Search";
 import "./styles/app.css";
 
 function App() {
@@ -69,7 +70,7 @@ function App() {
           path="/contact-us"
           element={<PlaceholderPage title="Contact Us" />}
         />
-        <Route path="/search" element={<PlaceholderPage title="Search" />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/signin" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
         <Route path="/otp" element={<OtpPage />} />

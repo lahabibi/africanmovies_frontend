@@ -112,7 +112,12 @@ function Header({ currentUser, onLogoutRequest }) {
         </nav>
 
         <div className="app-header__actions">
-          <IconButton label="Search" icon={searchIcon} to="/search" />
+          <IconButton
+            className={location.pathname === "/search" ? "is-active" : ""}
+            label="Search"
+            icon={searchIcon}
+            to="/search"
+          />
           {isAuthenticated ? (
             <div className="profile-menu" ref={profileMenuRef}>
               <button
