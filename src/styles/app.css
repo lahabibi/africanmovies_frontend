@@ -3794,10 +3794,12 @@
   gap: 4px;
 }
 
-.profile-sidebar a {
+.profile-sidebar a,
+.profile-sidebar__logout {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   min-height: 50px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
@@ -3808,7 +3810,8 @@
     color 160ms ease;
 }
 
-.profile-sidebar a svg {
+.profile-sidebar a svg,
+.profile-sidebar__logout svg {
   flex: 0 0 auto;
   color: currentColor;
 }
@@ -3817,6 +3820,22 @@
 .profile-sidebar a.is-active {
   color: var(--color-blue);
   background: rgba(var(--color-blue-rgb), 0.12);
+}
+
+.profile-sidebar__logout {
+  border: 0;
+  color: #ff6b76;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-sidebar__logout:hover,
+.profile-sidebar__logout:focus-visible {
+  color: #ff7d87;
+  background: rgba(255, 92, 106, 0.12);
 }
 
 .profile-content {

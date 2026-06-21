@@ -4,10 +4,14 @@ import {
   CircleHelp,
   CreditCard,
   Heart,
+  Library,
+  LogOut,
   MessageCircle,
+  Monitor,
   ReceiptText,
   UserRound,
 } from "lucide-react";
+import { useAppShellActions } from "../layout/AppShell";
 
 const accountSidebarSections = [
   {
@@ -26,6 +30,13 @@ const accountSidebarSections = [
         label: "Purchase History",
         to: "/purchase-history",
         icon: ReceiptText,
+      },
+      { id: "devices", label: "Devices", to: "/devices", icon: Monitor },
+      {
+        id: "library",
+        label: "My Library",
+        to: "/library",
+        icon: Library,
       },
       {
         id: "favorites",
@@ -57,6 +68,8 @@ const accountSidebarSections = [
 ];
 
 function AccountSidebar({ activeId, ariaLabel = "Account navigation" }) {
+  const { requestLogout } = useAppShellActions();
+
   return (
     <aside className="profile-sidebar" aria-label={ariaLabel}>
       {accountSidebarSections.map((section) => (
@@ -81,6 +94,20 @@ function AccountSidebar({ activeId, ariaLabel = "Account navigation" }) {
           </nav>
         </section>
       ))}
+
+      <section className="profile-sidebar__section">
+        <h2>Session</h2>
+        <nav aria-label="Session">
+          <button
+            className="profile-sidebar__logout"
+            onClick={requestLogout}
+            type="button"
+          >
+            <LogOut aria-hidden="true" size={21} strokeWidth={1.8} />
+            <span>Log Out</span>
+          </button>
+        </nav>
+      </section>
     </aside>
   );
 }
