@@ -1,36 +1,37 @@
-import { useMemo } from "react";
-import { Search as SearchIcon, SearchX, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  AlertCircle,
+  Search as SearchIcon,
+  SearchX,
+  X,
+} from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { popularSearches, searchMovies } from "../data/searchData";
+import { useMovieSearch } from "../hooks/useCatalog";
 
-const POPULAR_MOVIE_COUNT = 12;
+const SEARCH_DEBOUNCE_MS = 350;
+const SEARCH_SKELETON_COUNT = 12;
 
 function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") || "";
-  const normalizedQuery = query.trim().toLowerCase();
-
-  const results = useMemo(() => {
-    if (!normalizedQuery) {
-      return searchMovies.slice(0, POPULAR_MOVIE_COUNT);
-    }
-
-    return searchMovies
-      .map((movie) => ({
-        movie,
-        score: getSearchScore(movie, normalizedQuery),
-      }))
-      .filter((result) => result.score > 0)
-      .sort(
-        (firstResult, secondResult) =>
-          secondResult.score - firstResult.score ||
-          firstResult.movie.title.localeCompare(secondResult.movie.title),
-      )
-      .map((result) => result.movie);
-  }, [normalizedQuery]);
+  const normalizedQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(
+    normalizedQuery,
+    SEARCH_DEBOUNCE_MS,
+  );
+  const {
+    data: results = [],
+    isError,
+    isFetching,
+    refetch,
+  } = useMovieSearch(debouncedQuery);
+  const hasSearchQuery = normalizedQuery.length > 1;
+  const isWaitingForDebounce =
+    hasSearchQuery && debouncedQuery !== normalizedQuery;
+  const isLoading = hasSearchQuery && (isWaitingForDebounce || isFetching);
 
   const updateQuery = (value) => {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -50,7 +51,7 @@ function Search() {
         <section className="search-page__header" aria-labelledby="search-title">
           <div>
             <h1 id="search-title">Search</h1>
-            <p>Find movies by title, actor, genre or language.</p>
+            <p>Find movies by title or actor.</p>
           </div>
 
           <form
@@ -71,7 +72,7 @@ function Search() {
                   updateQuery("");
                 }
               }}
-              placeholder="Search movies, actors, genres..."
+              placeholder="Search movies or actors..."
               type="search"
               value={query}
             />
@@ -85,23 +86,6 @@ function Search() {
               </button>
             ) : null}
           </form>
-
-          {!normalizedQuery ? (
-            <div className="search-page__suggestions">
-              <span>Popular searches</span>
-              <div>
-                {popularSearches.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => updateQuery(suggestion)}
-                    type="button"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </section>
 
         <section
@@ -110,16 +94,27 @@ function Search() {
         >
           <header className="search-results__header">
             <h2 id="search-results-title">
-              {normalizedQuery ? "Search Results" : "Popular Now"}
+              {hasSearchQuery ? "Search Results" : "Discover Movies"}
             </h2>
             <span aria-live="polite">
-              {normalizedQuery
-                ? `${results.length} ${results.length === 1 ? "title" : "titles"}`
-                : `${results.length} featured titles`}
+              {getResultsLabel({
+                hasSearchQuery,
+                isError,
+                isLoading,
+                resultCount: results.length,
+              })}
             </span>
           </header>
 
-          {results.length ? (
+          {!normalizedQuery ? <SearchStart /> : null}
+
+          {normalizedQuery.length === 1 ? <SearchMinimum /> : null}
+
+          {isLoading ? <SearchResultsSkeleton /> : null}
+
+          {!isLoading && isError ? <SearchError onRetry={refetch} /> : null}
+
+          {!isLoading && !isError && hasSearchQuery && results.length ? (
             <div className="movies-grid search-results__grid">
               {results.map((movie) => (
                 <MoviePosterCard
@@ -130,13 +125,72 @@ function Search() {
                 />
               ))}
             </div>
-          ) : (
+          ) : null}
+
+          {!isLoading && !isError && hasSearchQuery && !results.length ? (
             <SearchEmpty query={query} onClear={() => updateQuery("")} />
-          )}
+          ) : null}
         </section>
       </main>
       <Footer />
     </AppShell>
+  );
+}
+
+function SearchStart() {
+  return (
+    <div className="search-empty search-empty--start">
+      <span>
+        <SearchIcon aria-hidden="true" size={30} strokeWidth={1.7} />
+      </span>
+      <h2>What would you like to watch?</h2>
+      <p>Search the AfricanMovies catalogue by movie title or actor name.</p>
+    </div>
+  );
+}
+
+function SearchMinimum() {
+  return (
+    <div className="search-empty search-empty--start">
+      <span>
+        <SearchIcon aria-hidden="true" size={30} strokeWidth={1.7} />
+      </span>
+      <h2>Keep typing</h2>
+      <p>Enter at least two characters to search the catalogue.</p>
+    </div>
+  );
+}
+
+function SearchResultsSkeleton() {
+  return (
+    <div
+      aria-label="Searching movies"
+      className="movies-grid search-results__grid"
+      role="status"
+    >
+      {Array.from({ length: SEARCH_SKELETON_COUNT }, (_, index) => (
+        <article className="poster-card movies-card-skeleton" key={index}>
+          <span className="movies-card-skeleton__poster" />
+          <span className="movies-card-skeleton__title" />
+          <span className="movies-card-skeleton__meta" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function SearchError({ onRetry }) {
+  return (
+    <div className="search-empty search-empty--error" role="alert">
+      <span>
+        <AlertCircle aria-hidden="true" size={30} strokeWidth={1.7} />
+      </span>
+      <h2>Search is unavailable</h2>
+      <p>We could not search the catalogue right now. Please try again.</p>
+      <button onClick={() => onRetry()} type="button">
+        Try Again
+      </button>
+    </div>
   );
 }
 
@@ -155,53 +209,32 @@ function SearchEmpty({ onClear, query }) {
   );
 }
 
-function getSearchScore(movie, query) {
-  const title = String(movie.title || "").toLowerCase();
-  const actors = (movie.cast || []).map(getActorName).join(" ").toLowerCase();
-  const metadata = [
-    movie.genre,
-    movie.language,
-    movie.countryName,
-    movie.description,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  if (title === query) {
-    return 5;
+function getResultsLabel({ hasSearchQuery, isError, isLoading, resultCount }) {
+  if (!hasSearchQuery) {
+    return "Search by title or actor";
   }
 
-  if (title.startsWith(query)) {
-    return 4;
+  if (isLoading) {
+    return "Searching...";
   }
 
-  if (title.includes(query)) {
-    return 3;
+  if (isError) {
+    return "Search failed";
   }
 
-  if (actors.includes(query)) {
-    return 2;
-  }
-
-  return metadata.includes(query) ? 1 : 0;
+  return `${resultCount} ${resultCount === 1 ? "title" : "titles"}`;
 }
 
-function getActorName(actor) {
-  if (typeof actor === "string") {
-    return actor;
-  }
+function useDebouncedValue(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
-  if (!actor || typeof actor !== "object") {
-    return "";
-  }
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedValue(value), delay);
 
-  return (
-    actor.name ||
-    actor.fullName ||
-    actor.actorName ||
-    [actor.firstName, actor.lastName].filter(Boolean).join(" ")
-  );
+    return () => window.clearTimeout(timeoutId);
+  }, [delay, value]);
+
+  return debouncedValue;
 }
 
 export default Search;

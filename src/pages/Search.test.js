@@ -1,6 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Search from "./Search";
+
+const mockUseMovieSearch = jest.fn();
+
+jest.mock("../hooks/useCatalog", () => ({
+  useMovieSearch: (query) => mockUseMovieSearch(query),
+}));
 
 jest.mock("../components/layout/AppShell", () => ({ children }) => (
   <div>{children}</div>
@@ -23,58 +29,100 @@ function renderSearch(initialEntry = "/search") {
   );
 }
 
-test("shows popular titles before a query is entered", () => {
+const defaultQueryState = {
+  data: [],
+  isError: false,
+  isFetching: false,
+  refetch: jest.fn(),
+};
+
+beforeEach(() => {
+  jest.useFakeTimers();
+  mockUseMovieSearch.mockReturnValue(defaultQueryState);
+});
+
+afterEach(() => {
+  jest.runOnlyPendingTimers();
+  jest.useRealTimers();
+});
+
+test("shows a search prompt without rendering fake movies", () => {
   renderSearch();
 
   expect(
-    screen.getByRole("heading", { name: "Popular Now" }),
+    screen.getByRole("heading", { name: "What would you like to watch?" }),
   ).toBeInTheDocument();
-  expect(screen.getAllByTestId("search-movie")).toHaveLength(12);
-  expect(screen.getByText("Popular searches")).toBeInTheDocument();
+  expect(screen.queryAllByTestId("search-movie")).toHaveLength(0);
+  expect(mockUseMovieSearch).toHaveBeenCalledWith("");
 });
 
-test("filters movies by title and clears the search", async () => {
+test("debounces the query and renders API results", () => {
+  const apiMovie = {
+    id: "movie-1",
+    title: "Mother's Love",
+    year: 2002,
+    genre: "Drama",
+  };
+  mockUseMovieSearch.mockImplementation((query) => ({
+    ...defaultQueryState,
+    data: query === "Love" ? [apiMovie] : [],
+  }));
+
   renderSearch();
-  const input = screen.getByPlaceholderText("Search movies, actors, genres...");
+  const input = screen.getByPlaceholderText("Search movies or actors...");
 
-  fireEvent.change(input, { target: { value: "Lionheart" } });
+  fireEvent.change(input, { target: { value: "Love" } });
+  expect(mockUseMovieSearch).toHaveBeenLastCalledWith("");
 
-  await waitFor(() =>
-    expect(screen.getAllByTestId("search-movie")).toHaveLength(1),
-  );
-  expect(screen.getByText("Lionheart")).toBeInTheDocument();
+  act(() => jest.advanceTimersByTime(350));
+
+  expect(mockUseMovieSearch).toHaveBeenLastCalledWith("Love");
+  expect(screen.getByText("Mother's Love")).toBeInTheDocument();
   expect(screen.getByText("1 title")).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-
-  await waitFor(() => expect(input).toHaveValue(""));
-  expect(screen.getAllByTestId("search-movie")).toHaveLength(12);
-});
-
-test("supports URL-backed actor searches and a no-results state", async () => {
-  renderSearch("/search?q=Ama%20Mensah");
-
-  expect(screen.getByDisplayValue("Ama Mensah")).toBeInTheDocument();
-  expect(screen.getAllByTestId("search-movie").length).toBeGreaterThan(0);
-
-  fireEvent.change(
-    screen.getByPlaceholderText("Search movies, actors, genres..."),
-    { target: { value: "No Such Movie" } },
-  );
-
-  await screen.findByRole("heading", { name: "No movies found" });
+  expect(input).toHaveValue("");
   expect(screen.queryAllByTestId("search-movie")).toHaveLength(0);
 });
 
-test("runs a suggested search", async () => {
-  renderSearch();
+test("supports URL-backed searches and a no-results state", () => {
+  renderSearch("/search?q=Ama%20Mensah");
 
-  fireEvent.click(screen.getByRole("button", { name: "Comedy" }));
+  expect(screen.getByDisplayValue("Ama Mensah")).toBeInTheDocument();
+  expect(mockUseMovieSearch).toHaveBeenCalledWith("Ama Mensah");
+  expect(
+    screen.getByRole("heading", { name: "No movies found" }),
+  ).toBeInTheDocument();
+  expect(screen.queryAllByTestId("search-movie")).toHaveLength(0);
+});
 
-  await waitFor(() =>
-    expect(
-      screen.getByPlaceholderText("Search movies, actors, genres..."),
-    ).toHaveValue("Comedy"),
+test("shows loading and error states with retry support", () => {
+  const refetch = jest.fn();
+  mockUseMovieSearch.mockReturnValue({
+    ...defaultQueryState,
+    isFetching: true,
+  });
+  const { rerender } = renderSearch("/search?q=Love");
+
+  expect(
+    screen.getByRole("status", { name: "Searching movies" }),
+  ).toBeInTheDocument();
+
+  mockUseMovieSearch.mockReturnValue({
+    ...defaultQueryState,
+    isError: true,
+    refetch,
+  });
+  rerender(
+    <MemoryRouter
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+      initialEntries={["/search?q=Love"]}
+    >
+      <Search />
+    </MemoryRouter>,
   );
-  expect(screen.getAllByTestId("search-movie").length).toBeGreaterThan(0);
+
+  expect(screen.getByRole("alert")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
+  expect(refetch).toHaveBeenCalledTimes(1);
 });

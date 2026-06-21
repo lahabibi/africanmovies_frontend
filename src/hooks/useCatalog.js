@@ -221,7 +221,8 @@ export function useMovieSearch(query) {
   return useQuery({
     enabled: normalizedQuery.length > 1,
     queryFn: async () => (await searchMovies(normalizedQuery)).map(mapMovie),
-    queryKey: catalogKeys.search(normalizedQuery),
+    queryKey: catalogKeys.search(normalizedQuery.toLowerCase()),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
