@@ -1,8 +1,16 @@
-import { AlertCircle, ArrowLeft, LoaderCircle, RotateCcw } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  LoaderCircle,
+  RotateCcw,
+} from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
 import {
+  completePlayback,
   createPlaybackSession,
   updatePlaybackProgress,
 } from "../api/watchApi";
@@ -15,10 +23,15 @@ function Playback() {
   const { movieId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const initialSession = location.state?.playbackSession || null;
   const [session, setSession] = useState(initialSession);
   const [isLoading, setIsLoading] = useState(!initialSession);
   const [error, setError] = useState("");
+  const [completion, setCompletion] = useState({
+    phase: "idle",
+    message: "",
+  });
   const currentTimeRef = useRef(initialSession?.access?.currentTime || 0);
   const lastProgressSentAtRef = useRef(0);
 
@@ -57,6 +70,8 @@ function Playback() {
   }, [loadSession, session]);
 
   useEffect(() => {
+    if (completion.phase !== "idle") return undefined;
+
     const expiresIn = Number(session?.playback?.expiresIn);
     if (!expiresIn) return undefined;
 
@@ -69,7 +84,12 @@ function Playback() {
     }, refreshAfter * 1000);
 
     return () => window.clearTimeout(timer);
-  }, [loadSession, session?.playback?.expiresIn, session?.playback?.token]);
+  }, [
+    completion.phase,
+    loadSession,
+    session?.playback?.expiresIn,
+    session?.playback?.token,
+  ]);
 
   const saveProgress = useCallback(
     (currentTime, force = false) => {
@@ -144,6 +164,68 @@ function Playback() {
     setError("The secure stream could not be loaded. Please try again.");
   }, []);
 
+  const handlePlaybackEnded = useCallback(
+    async (currentTime) => {
+      const orderId = session?.access?.orderId;
+      const finalTime = Math.max(0, Number(currentTime) || 0);
+      currentTimeRef.current = finalTime;
+
+      if (!orderId) {
+        setCompletion({
+          phase: "error",
+          message: "Your completion could not be saved.",
+        });
+        return;
+      }
+
+      setCompletion({
+        phase: "saving",
+        message: "Saving your progress.",
+      });
+
+      try {
+        await completePlayback({
+          orderId,
+          currentTime: Math.floor(finalTime),
+        });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
+          queryClient.invalidateQueries({
+            queryKey: ["watch-access", movieId],
+          }),
+        ]);
+        setCompletion({
+          phase: "complete",
+          message: "This title is still available in your library.",
+        });
+      } catch (completionError) {
+        setCompletion({
+          phase: "error",
+          message:
+            completionError?.message ||
+            "Your completion could not be saved.",
+        });
+      }
+    },
+    [movieId, queryClient, session?.access?.orderId],
+  );
+
+  const watchAgain = useCallback(async () => {
+    setCompletion({
+      phase: "restarting",
+      message: "Preparing the movie from the beginning.",
+    });
+    currentTimeRef.current = 0;
+    lastProgressSentAtRef.current = 0;
+
+    const nextSession = await loadSession();
+    if (nextSession) {
+      currentTimeRef.current = Number(nextSession.access?.currentTime) || 0;
+      setCompletion({ phase: "idle", message: "" });
+    }
+  }, [loadSession]);
+
   if (isLoading) {
     return (
       <PlaybackState
@@ -196,6 +278,7 @@ function Playback() {
 
       <div className="playback-player">
         <HlsVideoPlayer
+          onEnded={handlePlaybackEnded}
           onFatalError={handlePlayerError}
           onProgress={saveProgress}
           poster={session.movie?.poster}
@@ -203,6 +286,62 @@ function Playback() {
           startTime={resumeAt}
           title={session.movie?.title}
         />
+
+        {completion.phase !== "idle" ? (
+          <div className="playback-completion" role="status">
+            <div className="playback-completion__content">
+              <span aria-hidden="true">
+                {["saving", "restarting"].includes(completion.phase) ? (
+                  <LoaderCircle className="playback-page__spinner" />
+                ) : completion.phase === "complete" ? (
+                  <CheckCircle2 />
+                ) : (
+                  <AlertCircle />
+                )}
+              </span>
+              <h2>
+                {completion.phase === "complete"
+                  ? `You finished ${session.movie?.title || "this movie"}`
+                  : completion.phase === "error"
+                    ? "Completion not saved"
+                    : completion.phase === "restarting"
+                      ? "Starting again"
+                      : "Finishing up"}
+              </h2>
+              <p>{completion.message}</p>
+
+              {completion.phase === "complete" ? (
+                <div className="playback-page__state-actions">
+                  <button onClick={handleBack} type="button">
+                    <ArrowLeft aria-hidden="true" size={18} />
+                    Back to movie
+                  </button>
+                  <button className="is-primary" onClick={watchAgain} type="button">
+                    <RotateCcw aria-hidden="true" size={18} />
+                    Watch Again
+                  </button>
+                </div>
+              ) : null}
+
+              {completion.phase === "error" ? (
+                <div className="playback-page__state-actions">
+                  <button onClick={handleBack} type="button">
+                    <ArrowLeft aria-hidden="true" size={18} />
+                    Back to movie
+                  </button>
+                  <button
+                    className="is-primary"
+                    onClick={() => handlePlaybackEnded(currentTimeRef.current)}
+                    type="button"
+                  >
+                    <RotateCcw aria-hidden="true" size={18} />
+                    Try again
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </main>
   );

@@ -16,6 +16,13 @@ export function createPlaybackSession(movieId) {
   });
 }
 
+export function completePlayback({ orderId, currentTime }) {
+  return apiClient("/orders/watch/complete", {
+    body: { orderId, currentTime },
+    method: "POST",
+  });
+}
+
 export function updatePlaybackProgress({
   orderId,
   currentTime,

@@ -1248,6 +1248,54 @@
   object-fit: contain;
 }
 
+.playback-player {
+  position: relative;
+}
+
+.playback-completion {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--color-text);
+  background: rgba(0, 4, 9, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.playback-completion__content {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 480px);
+  text-align: center;
+}
+
+.playback-completion__content > span {
+  color: var(--color-blue);
+}
+
+.playback-completion__content > span svg {
+  width: 42px;
+  height: 42px;
+}
+
+.playback-completion__content h2,
+.playback-completion__content p {
+  margin: 0;
+}
+
+.playback-completion__content h2 {
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.playback-completion__content p {
+  color: var(--color-muted-strong);
+  font-size: 14px;
+}
+
 .playback-page--state {
   padding: 24px;
   background: var(--color-bg);

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 function HlsVideoPlayer({
+  onEnded,
   onFatalError,
   onProgress,
   poster,
@@ -83,7 +84,11 @@ function HlsVideoPlayer({
       className="playback-player__video"
       controls
       controlsList="nodownload"
-      onEnded={(event) => onProgress?.(event.currentTarget.currentTime, true)}
+      onEnded={(event) => {
+        const currentTime = event.currentTarget.currentTime;
+        onProgress?.(currentTime, true);
+        onEnded?.(currentTime);
+      }}
       onLoadedMetadata={restorePosition}
       onPause={(event) => onProgress?.(event.currentTarget.currentTime, true)}
       onTimeUpdate={(event) => onProgress?.(event.currentTarget.currentTime)}

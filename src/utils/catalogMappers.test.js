@@ -1,6 +1,7 @@
 import {
   buildActiveMovieAccessMap,
   formatCompactCount,
+  mapHomeData,
   mapMovieDetails,
   mapSavedMovie,
 } from "./catalogMappers";
@@ -79,6 +80,34 @@ describe("buildActiveMovieAccessMap", () => {
       timeLabel: "2d left",
     });
     expect(accessByMovieId.has("movie-expired")).toBe(false);
+  });
+});
+
+describe("completed playback catalog state", () => {
+  test("keeps active access while removing completed titles from Continue Watching", () => {
+    const result = mapHomeData({
+      movies: [
+        {
+          _id: "movie-complete",
+          duration: 120,
+          title: "Finished Story",
+        },
+      ],
+      orders: [
+        {
+          currentTime: 7200,
+          expiryDate: "2099-06-22T12:00:00.000Z",
+          movieId: "movie-complete",
+          playbackCompleted: true,
+        },
+      ],
+    });
+
+    expect(result.continueWatching).toEqual([]);
+    expect(result.movies[0].access).toMatchObject({
+      completed: true,
+      status: "active",
+    });
   });
 });
 

@@ -268,7 +268,12 @@ function buildContinueWatching(orders, movies) {
       const movie = movieById.get(movieId);
       const access = mapOrderAccess(order, movie);
 
-      if (!movie || !access || access.status === "expired") {
+      if (
+        !movie ||
+        !access ||
+        access.status === "expired" ||
+        order.playbackCompleted === true
+      ) {
         return null;
       }
 
@@ -320,6 +325,7 @@ function mapOrderAccess(order, movie) {
   const progress = getWatchProgress(order, movie);
 
   return {
+    ...(order?.playbackCompleted === true ? { completed: true } : {}),
     progress,
     status: isExpiringSoon ? "expiring" : "active",
     statusLabel: isExpiringSoon ? "Expiring Soon" : "Active",

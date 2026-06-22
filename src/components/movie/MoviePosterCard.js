@@ -129,9 +129,11 @@ function MoviePosterCard({
               <div className="poster-card__overlay-actions poster-card__overlay-actions--single">
                 <Link
                   className="poster-card__action poster-card__action--primary"
-                  to={`${detailsPath}?watch=resume`}
+                  to={`${detailsPath}?watch=${
+                    access.completed ? "now" : "resume"
+                  }`}
                 >
-                  Resume
+                  {access.completed ? "Watch Again" : "Resume"}
                 </Link>
               </div>
             ) : (
