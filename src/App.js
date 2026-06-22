@@ -8,10 +8,13 @@ import Library from "./pages/Library";
 import MovieDetails from "./pages/MovieDetails";
 import OtpPage from "./pages/OtpPage";
 import PaymentDetails from "./pages/PaymentDetails";
+import PaymentCallback from "./pages/PaymentCallback";
+import Playback from "./pages/Playback";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Profile from "./pages/Profile";
 import SavedMovies from "./pages/SavedMovies";
 import Search from "./pages/Search";
+import WatchFlowProvider from "./providers/WatchFlowProvider";
 import "./styles/app.css";
 
 function App() {
@@ -19,7 +22,8 @@ function App() {
     <BrowserRouter
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
-      <Routes>
+      <WatchFlowProvider>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/genres" element={<Genres />} />
         <Route path="/genres/:genreSlug" element={<Genres />} />
@@ -35,6 +39,8 @@ function App() {
           path="/payment-details"
           element={<PaymentDetails />}
         />
+        <Route path="/process-payment" element={<PaymentCallback />} />
+        <Route path="/process-token-payment" element={<PaymentCallback />} />
         <Route
           path="/favorites"
           element={<SavedMovies collectionType="favorites" />}
@@ -52,7 +58,7 @@ function App() {
           path="/parental-controls"
           element={<PlaceholderPage title="Parental Controls" />}
         />
-        <Route path="/playback" element={<PlaceholderPage title="Playback" />} />
+        <Route path="/playback/:movieId" element={<Playback />} />
         <Route
           path="/subtitles-audio"
           element={<PlaceholderPage title="Subtitles & Audio" />}
@@ -77,7 +83,8 @@ function App() {
         <Route path="/movies" element={<AllMovies />} />
         <Route path="/movies/:slug" element={<MovieDetails />} />
         <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
-      </Routes>
+        </Routes>
+      </WatchFlowProvider>
     </BrowserRouter>
   );
 }

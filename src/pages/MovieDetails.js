@@ -24,6 +24,8 @@ import { getAuthToken } from "../api/authToken";
 import { formatCompactCount } from "../utils/catalogMappers";
 import { resolveTrailerPlaybackSource } from "../utils/trailerPlayback";
 import { getWatchActionLabel } from "../utils/watchActionLabel";
+import { useWatchFlow } from "../providers/WatchFlowProvider";
+import { useWatchAccessDecision } from "../hooks/useWatchAccess";
 import audioIcon from "../assets/icons/ic_audio.png";
 import castIcon from "../assets/icons/ic_cast.png";
 import languageIcon from "../assets/icons/ic_language.png";
@@ -110,16 +112,25 @@ function MovieDetailsContent({ movie }) {
     (movie.hasBannerPicture ??
       Boolean(movie.bannerPicture || heroMovie.banner));
   const hasTrailer = Boolean(movie.trailerUrl || heroMovie.trailerUrl);
-  const watchActionLabel = getWatchActionLabel(movie);
   const moreLikeThisGenre = movie.genre || movie.genres?.[0];
   const moreLikeThisViewAllTo = moreLikeThisGenre
     ? `/movies?genre=${encodeURIComponent(moreLikeThisGenre)}`
     : "/movies";
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const autoWatchRef = useRef(false);
   const [listActionError, setListActionError] = useState("");
   const [listActionNotice, setListActionNotice] = useState("");
   const listActionNoticeTimer = useRef(null);
   const movieId = movie.backendId || movie.id;
+  const { data: watchAccessDecision } = useWatchAccessDecision(movieId);
+  const watchActionLabel = getWatchActionLabel(
+    movie,
+    "Watch Now",
+    watchAccessDecision,
+  );
+  const { activeMovieId, isBusy, startWatch } = useWatchFlow();
+  const isWatchBusy =
+    isBusy && String(activeMovieId) === String(movieId);
   const canRequestTrailerAccess = isMongoObjectId(movieId);
   const isAuthenticated = Boolean(getAuthToken());
   const { data: movieUserData, isLoading: isMovieUserDataLoading } =
@@ -159,6 +170,23 @@ function MovieDetailsContent({ movie }) {
       refetchTrailerAccess();
     }
   }, [canRequestTrailerAccess, isTrailerOpen, refetchTrailerAccess]);
+
+  useEffect(() => {
+    const intent = new URLSearchParams(location.search).get("watch");
+
+    if (!intent || autoWatchRef.current) {
+      return;
+    }
+
+    autoWatchRef.current = true;
+    navigate(location.pathname, {
+      replace: true,
+      state: location.state,
+    });
+    startWatch(movie, {
+      intent: intent === "resume" ? "resume" : "watch",
+    });
+  }, [location.pathname, location.search, location.state, movie, navigate, startWatch]);
 
   useEffect(
     () => () => {
@@ -278,13 +306,16 @@ function MovieDetailsContent({ movie }) {
             ) : null}
 
             <div className="movie-detail-actions">
-              <Link
+              <button
+                aria-busy={isWatchBusy}
                 className="button button--primary"
-                to={`/movies/${movie.slug}?watch=now`}
+                disabled={isWatchBusy}
+                onClick={() => startWatch(movie)}
+                type="button"
               >
                 <Play aria-hidden="true" size={19} fill="currentColor" />
-                {watchActionLabel}
-              </Link>
+                {isWatchBusy ? "Checking access..." : watchActionLabel}
+              </button>
 
               <button
                 className="button button--ghost"

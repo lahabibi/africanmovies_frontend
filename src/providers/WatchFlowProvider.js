@@ -1,0 +1,450 @@
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { getAuthToken } from "../api/authToken";
+import {
+  claimFreeMovie,
+  createPlaybackSession,
+  getWatchAccess,
+} from "../api/watchApi";
+import {
+  chargeSavedCard,
+  confirmPayment,
+  getSavedPaymentMethod,
+  initializeHostedPayment,
+  waitForPaymentCompletion,
+} from "../api/paymentApi";
+import WatchFlowDialog from "../components/watch/WatchFlowDialog";
+import { getWatchAccessQueryKey } from "../hooks/useWatchAccess";
+import {
+  createPaymentIdempotencyKey,
+  redirectToExternalCheckout,
+  savePendingPayment,
+} from "../utils/pendingPayment";
+
+const WatchFlowContext = createContext(null);
+const IDLE_FLOW = { phase: "idle", movie: null, decision: null, error: "" };
+
+function WatchFlowProvider({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [flow, setFlow] = useState(IDLE_FLOW);
+  const requestIdRef = useRef(0);
+
+  const redirectToSignIn = useCallback(
+    (movie, intent) => {
+      const movieId = getMovieId(movie);
+      const detailsId = movie?.slug || movieId;
+      const watchIntent = intent === "resume" ? "resume" : "now";
+      const returnPath = detailsId
+        ? `/movies/${detailsId}?watch=${watchIntent}`
+        : `${location.pathname}${location.search}`;
+
+      navigate("/signin", { state: { from: returnPath } });
+    },
+    [location.pathname, location.search, navigate],
+  );
+
+  const openPlayback = useCallback(
+    async (movie, movieId, requestId) => {
+      setFlow((current) => ({ ...current, phase: "starting" }));
+      const session = await createPlaybackSession(movieId);
+
+      if (requestIdRef.current !== requestId) return;
+
+      setFlow(IDLE_FLOW);
+      navigate(`/playback/${movieId}`, {
+        state: {
+          from: getPlaybackReturnPath(location.pathname, location.search),
+          movie: {
+            id: movieId,
+            slug: movie?.slug || movieId,
+            title: movie?.title || session.movie?.title,
+          },
+          playbackSession: session,
+        },
+      });
+    },
+    [location.pathname, location.search, navigate],
+  );
+
+  const startWatch = useCallback(
+    async (movie, { intent = "watch" } = {}) => {
+      const movieId = getMovieId(movie);
+
+      if (!getAuthToken()) {
+        redirectToSignIn(movie, intent);
+        return;
+      }
+
+      if (!isMongoObjectId(movieId)) {
+        setFlow({
+          phase: "error",
+          movie,
+          decision: null,
+          error: "This movie is not available for playback yet.",
+        });
+        return;
+      }
+
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      setFlow({ phase: "checking", movie, decision: null, error: "" });
+
+      try {
+        const decision = await queryClient.fetchQuery({
+          queryFn: () => getWatchAccess(movieId),
+          queryKey: getWatchAccessQueryKey(movieId),
+          staleTime: 30 * 1000,
+        });
+        if (requestIdRef.current !== requestId) return;
+
+        if (decision.action === "PLAY") {
+          await openPlayback(movie, movieId, requestId);
+          return;
+        }
+
+        if (decision.action === "CLAIM_FREE") {
+          setFlow({ phase: "claim", movie, decision, error: "" });
+          return;
+        }
+
+        if (decision.action === "PURCHASE") {
+          setFlow({ phase: "purchase", movie, decision, error: "" });
+          return;
+        }
+
+        setFlow({
+          phase: "error",
+          movie,
+          decision,
+          error: "This title is not available to watch right now.",
+        });
+      } catch (error) {
+        if (requestIdRef.current !== requestId) return;
+
+        if (error?.status === 401 || error?.status === 403) {
+          setFlow(IDLE_FLOW);
+          redirectToSignIn(movie, intent);
+          return;
+        }
+
+        setFlow({
+          phase: "error",
+          movie,
+          decision: null,
+          error: error?.message || "We could not check your movie access.",
+        });
+      }
+    },
+    [openPlayback, queryClient, redirectToSignIn],
+  );
+
+  const completePaymentAndPlay = useCallback(
+    async ({ movie, movieId, requestId, transactionId, txRef }) => {
+      let completedPayment;
+
+      try {
+        completedPayment = await confirmPayment({ transactionId, txRef });
+      } catch (error) {
+        if (
+          error?.data?.code !== "PAYMENT_NOT_VERIFIED" &&
+          error?.data?.code !== "PAYMENT_PROVIDER_UNAVAILABLE"
+        ) {
+          throw error;
+        }
+
+        completedPayment = await waitForPaymentCompletion(txRef);
+      }
+
+      const resolvedMovieId = completedPayment?.movieId || movieId;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
+        queryClient.invalidateQueries({
+          queryKey: getWatchAccessQueryKey(resolvedMovieId),
+        }),
+      ]);
+      await openPlayback(movie, resolvedMovieId, requestId);
+    },
+    [openPlayback, queryClient],
+  );
+
+  const redirectToCheckout = useCallback(
+    ({ decision, method, movie, result }) => {
+      const checkoutUrl = result.checkoutUrl || result.redirectUrl || result.url;
+
+      if (!checkoutUrl) {
+        throw new Error("Payment checkout is unavailable.");
+      }
+
+      savePendingPayment({
+        method,
+        movieId: getMovieId(movie),
+        movieTitle: movie?.title || decision?.movie?.title,
+        returnPath: getPlaybackReturnPath(
+          location.pathname,
+          location.search,
+        ),
+        txRef: result.txRef,
+      });
+      redirectToExternalCheckout(checkoutUrl);
+    },
+    [location.pathname, location.search],
+  );
+
+  const startHostedPayment = useCallback(
+    async (movie, decision) => {
+      const movieId = getMovieId(movie);
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      setFlow((current) => ({ ...current, phase: "payment-processing" }));
+
+      try {
+        const result = await initializeHostedPayment(
+          movieId,
+          createPaymentIdempotencyKey(movieId, "hosted"),
+        );
+        if (requestIdRef.current !== requestId) return;
+        redirectToCheckout({
+          decision,
+          method: "hosted_card",
+          movie,
+          result,
+        });
+      } catch (error) {
+        if (requestIdRef.current !== requestId) return;
+
+        if (error?.data?.code === "ACTIVE_ACCESS") {
+          await openPlayback(movie, movieId, requestId);
+          return;
+        }
+
+        setFlow({
+          phase: "error",
+          movie,
+          decision,
+          error: error?.message || "We could not open payment checkout.",
+        });
+      }
+    },
+    [openPlayback, redirectToCheckout],
+  );
+
+  const beginPurchase = useCallback(async () => {
+    const movie = flow.movie;
+    const decision = flow.decision;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setFlow((current) => ({ ...current, phase: "payment-loading" }));
+
+    try {
+      const response = await getSavedPaymentMethod();
+      if (requestIdRef.current !== requestId) return;
+
+      if (response?.tokenPayload?._id) {
+        setFlow((current) => ({
+          ...current,
+          phase: "payment-choice",
+          savedPayment: response.tokenPayload,
+        }));
+        return;
+      }
+
+      await startHostedPayment(movie, decision);
+    } catch (error) {
+      if (requestIdRef.current !== requestId) return;
+
+      setFlow({
+        phase: "error",
+        movie,
+        decision,
+        error: error?.message || "We could not load your payment options.",
+      });
+    }
+  }, [flow.decision, flow.movie, startHostedPayment]);
+
+  const payWithSavedCard = useCallback(async () => {
+    const movie = flow.movie;
+    const decision = flow.decision;
+    const movieId = getMovieId(movie);
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setFlow((current) => ({ ...current, phase: "payment-processing" }));
+
+    try {
+      const result = await chargeSavedCard(
+        movieId,
+        createPaymentIdempotencyKey(movieId, "saved"),
+      );
+      if (requestIdRef.current !== requestId) return;
+
+      if (result.code === "AUTHORIZATION_REQUIRED") {
+        redirectToCheckout({
+          decision,
+          method: "saved_card",
+          movie,
+          result,
+        });
+        return;
+      }
+
+      if (result.transactionId && result.txRef) {
+        await completePaymentAndPlay({
+          movie,
+          movieId,
+          requestId,
+          transactionId: result.transactionId,
+          txRef: result.txRef,
+        });
+        return;
+      }
+
+      throw new Error("Saved-card payment is still processing.");
+    } catch (error) {
+      if (requestIdRef.current !== requestId) return;
+
+      if (
+        error?.data?.code === "NO_SAVED_CARD" ||
+        error?.data?.code === "SAVED_CARD_EXPIRED"
+      ) {
+        await startHostedPayment(movie, decision);
+        return;
+      }
+
+      setFlow({
+        phase: "error",
+        movie,
+        decision,
+        error: error?.message || "Saved-card payment failed.",
+      });
+    }
+  }, [
+    completePaymentAndPlay,
+    flow.decision,
+    flow.movie,
+    redirectToCheckout,
+    startHostedPayment,
+  ]);
+
+  const confirmFreeClaim = useCallback(async () => {
+    const movie = flow.movie;
+    const movieId = getMovieId(movie);
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setFlow((current) => ({ ...current, phase: "claiming", error: "" }));
+
+    try {
+      const decision = await claimFreeMovie(movieId);
+      if (requestIdRef.current !== requestId) return;
+
+      if (decision.action !== "PLAY") {
+        setFlow({
+          phase: decision.action === "PURCHASE" ? "purchase" : "error",
+          movie,
+          decision,
+          error:
+            decision.action === "PURCHASE"
+              ? ""
+              : "Free access is no longer available for this title.",
+        });
+        return;
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
+      ]);
+      queryClient.setQueryData(getWatchAccessQueryKey(movieId), decision);
+      await openPlayback(movie, movieId, requestId);
+    } catch (error) {
+      if (requestIdRef.current !== requestId) return;
+
+      if (error?.status === 401 || error?.status === 403) {
+        setFlow(IDLE_FLOW);
+        redirectToSignIn(movie, "watch");
+        return;
+      }
+
+      setFlow({
+        phase: "error",
+        movie,
+        decision: flow.decision,
+        error: error?.message || "We could not claim this movie.",
+      });
+    }
+  }, [flow.decision, flow.movie, openPlayback, queryClient, redirectToSignIn]);
+
+  const closeFlow = useCallback(() => {
+    requestIdRef.current += 1;
+    setFlow(IDLE_FLOW);
+  }, []);
+
+  const retryFlow = useCallback(() => {
+    const movie = flow.movie;
+    closeFlow();
+    startWatch(movie);
+  }, [closeFlow, flow.movie, startWatch]);
+
+  const value = useMemo(
+    () => ({
+      activeMovieId: getMovieId(flow.movie),
+      isBusy: ["checking", "claiming", "starting"].includes(flow.phase),
+      startWatch,
+    }),
+    [flow.movie, flow.phase, startWatch],
+  );
+
+  return (
+    <WatchFlowContext.Provider value={value}>
+      {children}
+      {flow.phase !== "idle" ? (
+        <WatchFlowDialog
+          flow={flow}
+          onClose={closeFlow}
+          onConfirmFree={confirmFreeClaim}
+          onPayWithNewCard={() => startHostedPayment(flow.movie, flow.decision)}
+          onPayWithSavedCard={payWithSavedCard}
+          onPurchase={beginPurchase}
+          onRetry={retryFlow}
+        />
+      ) : null}
+    </WatchFlowContext.Provider>
+  );
+}
+
+export function useWatchFlow() {
+  const context = useContext(WatchFlowContext);
+
+  if (!context) {
+    throw new Error("useWatchFlow must be used inside WatchFlowProvider");
+  }
+
+  return context;
+}
+
+function getMovieId(movie) {
+  return String(movie?.backendId || movie?.id || movie?.slug || "");
+}
+
+function isMongoObjectId(value) {
+  return /^[a-f0-9]{24}$/i.test(String(value || ""));
+}
+
+function getPlaybackReturnPath(pathname, search) {
+  const params = new URLSearchParams(search);
+  params.delete("watch");
+  const normalizedSearch = params.toString();
+
+  return `${pathname}${normalizedSearch ? `?${normalizedSearch}` : ""}`;
+}
+
+export default WatchFlowProvider;

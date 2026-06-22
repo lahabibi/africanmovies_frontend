@@ -5,6 +5,7 @@ import { useTrailerAccess } from "../../hooks/useCatalog";
 import { resolveTrailerPlaybackSource } from "../../utils/trailerPlayback";
 import starIcon from "../../assets/icons/ic_star.png";
 import TrailerModal from "./TrailerModal";
+import { getMovieCardWatchLabel } from "../../utils/watchActionLabel";
 
 const genreDescriptions = {
   Action:
@@ -144,7 +145,7 @@ function MoviePosterCard({
                     className="poster-card__action poster-card__action--primary"
                     to={watchPath}
                   >
-                    Watch Now
+                    {getMovieCardWatchLabel(movie)}
                   </Link>
                   {hasTrailer ? (
                     <button

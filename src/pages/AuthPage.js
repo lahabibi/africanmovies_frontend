@@ -40,7 +40,12 @@ function AuthPage() {
     setErrorMessage("");
     requestOtpMutation.mutate(nextEmail, {
       onSuccess: () => {
-        navigate("/otp", { state: { email: nextEmail } });
+        navigate("/otp", {
+          state: {
+            email: nextEmail,
+            from: location.state?.from,
+          },
+        });
       },
       onError: (error) => {
         setErrorMessage(error.message);

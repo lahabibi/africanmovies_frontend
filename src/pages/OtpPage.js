@@ -39,7 +39,7 @@ function OtpPage() {
         { email, otp: code },
         {
           onSuccess: () => {
-            navigate("/", { replace: true });
+            navigate(location.state?.from || "/", { replace: true });
           },
           onError: (error) => {
             setErrorMessage(error.message);
@@ -47,7 +47,7 @@ function OtpPage() {
         },
       );
     },
-    [email, navigate, verifyOtpMutation],
+    [email, location.state?.from, navigate, verifyOtpMutation],
   );
 
   useEffect(() => {

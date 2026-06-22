@@ -8,15 +8,20 @@ import playIcon from "../../assets/icons/ic_play_button.png";
 import playTv from "../../assets/icons/ic_play_tv.png";
 import starIcon from "../../assets/icons/ic_star.png";
 import TrailerModal from "./TrailerModal";
+import { useWatchFlow } from "../../providers/WatchFlowProvider";
+import { useWatchAccessDecision } from "../../hooks/useWatchAccess";
 
 function HeroDetails({ movie, isLive = false }) {
   const detailsPath = `/movies/${movie.slug}`;
   const eyebrow = movie.releaseType || movie.eyebrow;
   const [trailerMovie, setTrailerMovie] = useState(null);
+  const { activeMovieId, isBusy, startWatch } = useWatchFlow();
   const activeTrailerMovie = trailerMovie || movie;
   const activeTrailerMovieId =
     activeTrailerMovie?.backendId || activeTrailerMovie?.id;
   const canRequestTrailerAccess = isMongoObjectId(activeTrailerMovieId);
+  const movieId = movie.backendId || movie.id;
+  const { data: watchAccessDecision } = useWatchAccessDecision(movieId);
   const {
     data: trailerAccess,
     error: trailerError,
@@ -46,6 +51,8 @@ function HeroDetails({ movie, isLive = false }) {
     isTrailerFetching &&
     !trailerAccess &&
     !trailerError;
+  const isWatchBusy =
+    isBusy && String(activeMovieId) === String(movie.backendId || movie.id);
 
   useEffect(() => {
     if (isTrailerOpen && canRequestTrailerAccess) {
@@ -92,10 +99,24 @@ function HeroDetails({ movie, isLive = false }) {
         </div>
 
         <div className="hero-banner__actions">
-          <Link className="button button--primary" to={detailsPath}>
+          <button
+            aria-busy={isWatchBusy}
+            className="button button--primary"
+            disabled={isWatchBusy}
+            onClick={() => startWatch(movie)}
+            type="button"
+          >
             <img src={playIcon} alt="" aria-hidden="true" />
-            <span>{getWatchActionLabel(movie, "Watch for")}</span>
-          </Link>
+            <span>
+              {isWatchBusy
+                ? "Checking access..."
+                : getWatchActionLabel(
+                    movie,
+                    "Watch for",
+                    watchAccessDecision,
+                  )}
+            </span>
+          </button>
           <button
             className="button button--ghost"
             onClick={openTrailer}
