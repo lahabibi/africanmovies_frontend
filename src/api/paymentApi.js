@@ -43,6 +43,13 @@ export function confirmPayment({ transactionId, txRef }) {
   });
 }
 
+export function closePaymentAttempt({ providerStatus, txRef }) {
+  return apiClient("/payment/close-attempt", {
+    body: { providerStatus, txRef },
+    method: "POST",
+  });
+}
+
 export function getPaymentStatus(txRef) {
   return apiClient(`/payment/status/${encodeURIComponent(txRef)}`);
 }

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
 import {
+  closePaymentAttempt,
   confirmPayment,
   getSavedPaymentMethod,
   savePaymentMethod,
@@ -30,6 +31,7 @@ function PaymentCallback() {
   const hasRunRef = useRef(false);
   const completionRef = useRef(null);
   const cardPromptRef = useRef("save-card");
+  const pendingPaymentRef = useRef(getPendingPayment());
   const [retryCount, setRetryCount] = useState(0);
   const [state, setState] = useState({
     phase: "verifying",
@@ -91,7 +93,7 @@ function PaymentCallback() {
     const providerStatus = params.get("status");
     const transactionId = params.get("transaction_id");
     const txRef = params.get("tx_ref");
-    const pendingPayment = getPendingPayment();
+    const pendingPayment = pendingPaymentRef.current;
 
     if (!getAuthToken()) {
       navigate("/signin", {
@@ -102,9 +104,37 @@ function PaymentCallback() {
     }
 
     if (providerStatus && providerStatus !== "successful") {
+      let closedAttempt = null;
+
+      if (txRef) {
+        closedAttempt = await closePaymentAttempt({
+          providerStatus,
+          txRef,
+        }).catch(() => null);
+      }
+
+      if (closedAttempt?.code === "PAYMENT_COMPLETED") {
+        const completion = {
+          movieId: closedAttempt.movieId || pendingPayment?.movieId,
+          pendingPayment,
+          transactionId:
+            closedAttempt.transactionId || transactionId,
+        };
+        completionRef.current = completion;
+        await continueToPlayback(completion);
+        return;
+      }
+
+      if (closedAttempt?.code === "PAYMENT_ATTEMPT_CLOSED") {
+        clearPendingPayment();
+      }
+
+      const wasCancelled = providerStatus === "cancelled";
       setState({
-        phase: "cancelled",
-        message: "No charge was completed. You can return and try again.",
+        phase: wasCancelled ? "cancelled" : "failed",
+        message: wasCancelled
+          ? "No charge was completed. You can return and try again."
+          : "The payment did not go through. You can return and try again.",
       });
       return;
     }
@@ -220,7 +250,7 @@ function PaymentCallback() {
     }
   };
 
-  const pendingPayment = getPendingPayment();
+  const pendingPayment = pendingPaymentRef.current;
   const returnPath = pendingPayment?.returnPath || "/";
   const isLoading = ["verifying", "success", "saving-card"].includes(
     state.phase,
@@ -308,6 +338,7 @@ function PaymentCallback() {
 function getStateTitle(phase) {
   if (phase === "success") return "Payment confirmed";
   if (phase === "cancelled") return "Payment cancelled";
+  if (phase === "failed") return "Payment failed";
   if (phase === "error") return "Payment could not be confirmed";
   if (phase === "save-card") return "Save this card?";
   if (phase === "replace-card") return "Replace saved card?";

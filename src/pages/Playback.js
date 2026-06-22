@@ -96,6 +96,38 @@ function Playback() {
     [session?.access?.orderId],
   );
 
+  const flushProgress = useCallback(
+    (keepalive = false) => {
+      const orderId = session?.access?.orderId;
+      if (!orderId) return;
+
+      updatePlaybackProgress({
+        orderId,
+        currentTime: Math.floor(Math.max(0, currentTimeRef.current)),
+        keepalive,
+      }).catch(() => undefined);
+    },
+    [session?.access?.orderId],
+  );
+
+  useEffect(() => {
+    const handlePageHide = () => flushProgress(true);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushProgress(true);
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      flushProgress(true);
+    };
+  }, [flushProgress]);
+
   const handleBack = () => {
     saveProgress(currentTimeRef.current, true);
     const returnPath = location.state?.from;

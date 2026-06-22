@@ -16,12 +16,17 @@ export function createPlaybackSession(movieId) {
   });
 }
 
-export function updatePlaybackProgress({ orderId, currentTime }) {
+export function updatePlaybackProgress({
+  orderId,
+  currentTime,
+  keepalive = false,
+}) {
   return apiClient("/orders/currentTime", {
     body: {
       _id: orderId,
       currentTime,
     },
+    keepalive,
     method: "POST",
   });
 }

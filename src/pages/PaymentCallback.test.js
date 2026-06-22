@@ -2,7 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
-import { confirmPayment, savePaymentMethod } from "../api/paymentApi";
+import {
+  closePaymentAttempt,
+  confirmPayment,
+  savePaymentMethod,
+} from "../api/paymentApi";
 import { createPlaybackSession } from "../api/watchApi";
 import { savePendingPayment } from "../utils/pendingPayment";
 import PaymentCallback from "./PaymentCallback";
@@ -12,6 +16,7 @@ jest.mock("../api/authToken", () => ({
 }));
 
 jest.mock("../api/paymentApi", () => ({
+  closePaymentAttempt: jest.fn(),
   confirmPayment: jest.fn(),
   getSavedPaymentMethod: jest.fn(),
   savePaymentMethod: jest.fn(),
@@ -51,6 +56,11 @@ afterEach(() => {
 
 test("shows a cancelled Flutterwave return without confirming", async () => {
   getAuthToken.mockReturnValue("test-token");
+  closePaymentAttempt.mockResolvedValue({
+    code: "PAYMENT_ATTEMPT_CLOSED",
+    status: "failed",
+    txRef: "tx-1",
+  });
   renderCallback(
     "/process-payment?status=cancelled&transaction_id=flw-1&tx_ref=tx-1",
   );
@@ -58,6 +68,10 @@ test("shows a cancelled Flutterwave return without confirming", async () => {
   expect(
     await screen.findByRole("heading", { name: "Payment cancelled" }),
   ).toBeInTheDocument();
+  expect(closePaymentAttempt).toHaveBeenCalledWith({
+    providerStatus: "cancelled",
+    txRef: "tx-1",
+  });
   expect(confirmPayment).not.toHaveBeenCalled();
 });
 
