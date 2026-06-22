@@ -3923,6 +3923,8 @@
 .library-empty {
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: 8px;
   min-height: 280px;
   margin-top: 26px;
   border: 1px solid var(--color-border-soft);
@@ -3937,9 +3939,29 @@
 }
 
 .library-empty p {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--color-muted);
   font-size: 14px;
+}
+
+.library-empty button {
+  min-height: 38px;
+  margin-top: 8px;
+  padding: 0 16px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.5);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: rgba(var(--color-blue-rgb), 0.12);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.library-empty button:hover,
+.library-empty button:focus-visible {
+  border-color: var(--color-blue);
+  background: rgba(var(--color-blue-rgb), 0.2);
 }
 
 .movies-page {
