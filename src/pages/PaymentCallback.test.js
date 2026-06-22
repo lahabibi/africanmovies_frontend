@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
-import { confirmPayment } from "../api/paymentApi";
+import { confirmPayment, savePaymentMethod } from "../api/paymentApi";
 import { createPlaybackSession } from "../api/watchApi";
 import { savePendingPayment } from "../utils/pendingPayment";
 import PaymentCallback from "./PaymentCallback";
@@ -13,6 +13,8 @@ jest.mock("../api/authToken", () => ({
 
 jest.mock("../api/paymentApi", () => ({
   confirmPayment: jest.fn(),
+  getSavedPaymentMethod: jest.fn(),
+  savePaymentMethod: jest.fn(),
   waitForPaymentCompletion: jest.fn(),
 }));
 
@@ -62,6 +64,7 @@ test("shows a cancelled Flutterwave return without confirming", async () => {
 test("confirms payment and continues into playback", async () => {
   getAuthToken.mockReturnValue("test-token");
   savePendingPayment({
+    method: "saved_card",
     movieId,
     movieTitle: "The Story",
     returnPath: `/movies/${movieId}`,
@@ -84,4 +87,71 @@ test("confirms payment and continues into playback", async () => {
     txRef: "tx-1",
   });
   expect(createPlaybackSession).toHaveBeenCalledWith(movieId);
+});
+
+test("offers to save a newly used card before starting playback", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  savePendingPayment({
+    hadSavedCard: false,
+    method: "hosted_card",
+    movieId,
+    movieTitle: "The Story",
+    returnPath: `/movies/${movieId}`,
+    txRef: "tx-1",
+  });
+  confirmPayment.mockResolvedValue({ movieId, status: "successful" });
+  savePaymentMethod.mockResolvedValue({
+    cardType: "visa",
+    last4Digits: "4242",
+  });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movieId, title: "The Story" },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+  renderCallback(
+    "/process-payment?status=successful&transaction_id=flw-1&tx_ref=tx-1",
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: "Save this card?" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save card" }));
+
+  expect(await screen.findByText("Playback opened")).toBeInTheDocument();
+  expect(savePaymentMethod).toHaveBeenCalledWith({
+    isNewCard: true,
+    transactionId: "flw-1",
+  });
+});
+
+test("offers to replace an existing card after using another card", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  savePendingPayment({
+    hadSavedCard: true,
+    method: "hosted_card",
+    movieId,
+    movieTitle: "The Story",
+    returnPath: `/movies/${movieId}`,
+    txRef: "tx-1",
+  });
+  confirmPayment.mockResolvedValue({ movieId, status: "successful" });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movieId, title: "The Story" },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+  renderCallback(
+    "/process-payment?status=successful&transaction_id=flw-1&tx_ref=tx-1",
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: "Replace saved card?" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+
+  expect(await screen.findByText("Playback opened")).toBeInTheDocument();
+  expect(savePaymentMethod).not.toHaveBeenCalled();
 });

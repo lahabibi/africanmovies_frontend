@@ -4,6 +4,16 @@ export function getSavedPaymentMethod() {
   return apiClient("/payment/token");
 }
 
+export function savePaymentMethod({ isNewCard = true, transactionId }) {
+  return apiClient("/payment/token", {
+    body: {
+      isNewCard,
+      transactionID: String(transactionId),
+    },
+    method: "POST",
+  });
+}
+
 export function initializeHostedPayment(movieId, idempotencyKey) {
   return apiClient("/payment/initialize", {
     body: {

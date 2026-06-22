@@ -2,7 +2,9 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  CreditCard,
   LoaderCircle,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,6 +13,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
 import {
   confirmPayment,
+  getSavedPaymentMethod,
+  savePaymentMethod,
   waitForPaymentCompletion,
 } from "../api/paymentApi";
 import { createPlaybackSession } from "../api/watchApi";
@@ -24,11 +28,63 @@ function PaymentCallback() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const hasRunRef = useRef(false);
+  const completionRef = useRef(null);
+  const cardPromptRef = useRef("save-card");
   const [retryCount, setRetryCount] = useState(0);
   const [state, setState] = useState({
     phase: "verifying",
     message: "Confirming your payment securely.",
   });
+
+  const continueToPlayback = useCallback(
+    async (completion = completionRef.current) => {
+      if (!completion?.movieId) {
+        setState({
+          phase: "error",
+          message: "Payment completed, but the movie could not be found.",
+        });
+        return;
+      }
+
+      setState({
+        phase: "success",
+        message: "Payment confirmed. Starting your movie.",
+      });
+
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
+          queryClient.invalidateQueries({ queryKey: ["watch-access"] }),
+        ]);
+
+        const playbackSession = await createPlaybackSession(completion.movieId);
+        clearPendingPayment();
+        navigate(`/playback/${completion.movieId}`, {
+          replace: true,
+          state: {
+            from:
+              completion.pendingPayment?.returnPath ||
+              `/movies/${completion.movieId}`,
+            movie: {
+              id: completion.movieId,
+              slug: completion.movieId,
+              title:
+                completion.pendingPayment?.movieTitle ||
+                playbackSession.movie?.title,
+            },
+            playbackSession,
+          },
+        });
+      } catch (error) {
+        setState({
+          phase: "error",
+          message: error?.message || "Payment completed, but playback could not start.",
+        });
+      }
+    },
+    [navigate, queryClient],
+  );
 
   const processPayment = useCallback(async () => {
     const params = new URLSearchParams(location.search);
@@ -90,31 +146,35 @@ function PaymentCallback() {
         throw new Error("Payment completed, but the movie could not be found.");
       }
 
+      const completion = {
+        movieId,
+        pendingPayment,
+        transactionId,
+      };
+      completionRef.current = completion;
+
+      const isHostedPayment =
+        pendingPayment?.method === "hosted_card" ||
+        (!pendingPayment?.method && location.pathname === "/process-payment");
+
+      if (!isHostedPayment) {
+        await continueToPlayback(completion);
+        return;
+      }
+
+      let hadSavedCard = pendingPayment?.hadSavedCard;
+      if (typeof hadSavedCard !== "boolean") {
+        const savedPayment = await getSavedPaymentMethod().catch(() => null);
+        hadSavedCard = Boolean(savedPayment?.tokenPayload?._id);
+      }
+
+      const promptPhase = hadSavedCard ? "replace-card" : "save-card";
+      cardPromptRef.current = promptPhase;
       setState({
-        phase: "success",
-        message: "Payment confirmed. Starting your movie.",
-      });
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
-        queryClient.invalidateQueries({ queryKey: ["watch-access"] }),
-      ]);
-
-      const playbackSession = await createPlaybackSession(movieId);
-      clearPendingPayment();
-      navigate(`/playback/${movieId}`, {
-        replace: true,
-        state: {
-          from: pendingPayment?.returnPath || `/movies/${movieId}`,
-          movie: {
-            id: movieId,
-            slug: movieId,
-            title:
-              pendingPayment?.movieTitle || playbackSession.movie?.title,
-          },
-          playbackSession,
-        },
+        phase: promptPhase,
+        message: hadSavedCard
+          ? "Replace your saved card with the card used for this payment?"
+          : "Save the card used for faster payments next time?",
       });
     } catch (error) {
       setState({
@@ -122,7 +182,7 @@ function PaymentCallback() {
         message: error?.message || "We could not confirm this payment.",
       });
     }
-  }, [location.pathname, location.search, navigate, queryClient]);
+  }, [continueToPlayback, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (hasRunRef.current) return;
@@ -135,9 +195,37 @@ function PaymentCallback() {
     setRetryCount((value) => value + 1);
   };
 
+  const saveCardAndContinue = async () => {
+    const completion = completionRef.current;
+    if (!completion?.transactionId) return;
+
+    setState({
+      phase: "saving-card",
+      message: "Saving your payment method securely.",
+    });
+
+    try {
+      await savePaymentMethod({
+        isNewCard: true,
+        transactionId: completion.transactionId,
+      });
+      await continueToPlayback(completion);
+    } catch (error) {
+      setState({
+        phase: "card-save-error",
+        message:
+          error?.message ||
+          "Your payment succeeded, but the card could not be saved.",
+      });
+    }
+  };
+
   const pendingPayment = getPendingPayment();
   const returnPath = pendingPayment?.returnPath || "/";
-  const isLoading = state.phase === "verifying" || state.phase === "success";
+  const isLoading = ["verifying", "success", "saving-card"].includes(
+    state.phase,
+  );
+  const isCardPrompt = ["save-card", "replace-card"].includes(state.phase);
 
   return (
     <main className="payment-return">
@@ -146,10 +234,12 @@ function PaymentCallback() {
         className={`payment-return__card payment-return__card--${state.phase}`}
       >
         <span className="payment-return__icon" aria-hidden="true">
-          {state.phase === "verifying" ? (
+          {isLoading ? (
             <LoaderCircle className="payment-return__spinner" />
           ) : state.phase === "success" ? (
             <CheckCircle2 />
+          ) : isCardPrompt ? (
+            state.phase === "replace-card" ? <RefreshCw /> : <CreditCard />
           ) : (
             <AlertCircle />
           )}
@@ -158,7 +248,45 @@ function PaymentCallback() {
         <h1>{getStateTitle(state.phase)}</h1>
         <p>{state.message}</p>
 
-        {!isLoading ? (
+        {isCardPrompt ? (
+          <div className="payment-return__actions">
+            <button onClick={() => continueToPlayback()} type="button">
+              Not now
+            </button>
+            <button
+              className="is-primary"
+              onClick={saveCardAndContinue}
+              type="button"
+            >
+              {state.phase === "replace-card" ? "Replace card" : "Save card"}
+            </button>
+          </div>
+        ) : null}
+
+        {state.phase === "card-save-error" ? (
+          <div className="payment-return__actions">
+            <button onClick={() => continueToPlayback()} type="button">
+              Continue without saving
+            </button>
+            <button
+              className="is-primary"
+              onClick={() => {
+                setState({
+                  phase: cardPromptRef.current,
+                  message:
+                    cardPromptRef.current === "replace-card"
+                      ? "Replace your saved card with the card used for this payment?"
+                      : "Save the card used for faster payments next time?",
+                });
+              }}
+              type="button"
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
+
+        {!isLoading && !isCardPrompt && state.phase !== "card-save-error" ? (
           <div className="payment-return__actions">
             <button onClick={() => navigate(returnPath)} type="button">
               <ArrowLeft aria-hidden="true" size={18} />
@@ -181,6 +309,10 @@ function getStateTitle(phase) {
   if (phase === "success") return "Payment confirmed";
   if (phase === "cancelled") return "Payment cancelled";
   if (phase === "error") return "Payment could not be confirmed";
+  if (phase === "save-card") return "Save this card?";
+  if (phase === "replace-card") return "Replace saved card?";
+  if (phase === "saving-card") return "Saving card";
+  if (phase === "card-save-error") return "Card was not saved";
   return "Verifying payment";
 }
 

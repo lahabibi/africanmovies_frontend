@@ -133,7 +133,7 @@ function WatchFlowDialog({
               message={
                 flow.decision?.reason === "FREE_ACCESS_EXPIRED"
                   ? `Your free access has ended. This title is available again for ${price}.`
-                  : `This title requires a one-time payment of ${price} before playback.`
+                  : `Unlock this movie for ${price} and start watching.`
               }
               title={`Unlock ${movieTitle}`}
             />

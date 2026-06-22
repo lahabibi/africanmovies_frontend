@@ -179,7 +179,7 @@ function WatchFlowProvider({ children }) {
   );
 
   const redirectToCheckout = useCallback(
-    ({ decision, method, movie, result }) => {
+    ({ decision, hadSavedCard, method, movie, result }) => {
       const checkoutUrl = result.checkoutUrl || result.redirectUrl || result.url;
 
       if (!checkoutUrl) {
@@ -187,6 +187,7 @@ function WatchFlowProvider({ children }) {
       }
 
       savePendingPayment({
+        hadSavedCard: Boolean(hadSavedCard),
         method,
         movieId: getMovieId(movie),
         movieTitle: movie?.title || decision?.movie?.title,
@@ -202,7 +203,7 @@ function WatchFlowProvider({ children }) {
   );
 
   const startHostedPayment = useCallback(
-    async (movie, decision) => {
+    async (movie, decision, { hadSavedCard = false } = {}) => {
       const movieId = getMovieId(movie);
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
@@ -216,6 +217,7 @@ function WatchFlowProvider({ children }) {
         if (requestIdRef.current !== requestId) return;
         redirectToCheckout({
           decision,
+          hadSavedCard,
           method: "hosted_card",
           movie,
           result,
@@ -259,7 +261,7 @@ function WatchFlowProvider({ children }) {
         return;
       }
 
-      await startHostedPayment(movie, decision);
+      await startHostedPayment(movie, decision, { hadSavedCard: false });
     } catch (error) {
       if (requestIdRef.current !== requestId) return;
 
@@ -290,6 +292,7 @@ function WatchFlowProvider({ children }) {
       if (result.code === "AUTHORIZATION_REQUIRED") {
         redirectToCheckout({
           decision,
+          hadSavedCard: true,
           method: "saved_card",
           movie,
           result,
@@ -316,7 +319,7 @@ function WatchFlowProvider({ children }) {
         error?.data?.code === "NO_SAVED_CARD" ||
         error?.data?.code === "SAVED_CARD_EXPIRED"
       ) {
-        await startHostedPayment(movie, decision);
+        await startHostedPayment(movie, decision, { hadSavedCard: true });
         return;
       }
 
@@ -411,7 +414,11 @@ function WatchFlowProvider({ children }) {
           flow={flow}
           onClose={closeFlow}
           onConfirmFree={confirmFreeClaim}
-          onPayWithNewCard={() => startHostedPayment(flow.movie, flow.decision)}
+          onPayWithNewCard={() =>
+            startHostedPayment(flow.movie, flow.decision, {
+              hadSavedCard: true,
+            })
+          }
           onPayWithSavedCard={payWithSavedCard}
           onPurchase={beginPurchase}
           onRetry={retryFlow}
