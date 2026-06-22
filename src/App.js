@@ -12,6 +12,7 @@ import PaymentCallback from "./pages/PaymentCallback";
 import Playback from "./pages/Playback";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Profile from "./pages/Profile";
+import PurchaseHistory from "./pages/PurchaseHistory";
 import SavedMovies from "./pages/SavedMovies";
 import Search from "./pages/Search";
 import WatchFlowProvider from "./providers/WatchFlowProvider";
@@ -52,7 +53,7 @@ function App() {
         <Route path="/devices" element={<PlaceholderPage title="Devices" />} />
         <Route
           path="/purchase-history"
-          element={<PlaceholderPage title="Purchase History" />}
+          element={<PurchaseHistory />}
         />
         <Route
           path="/parental-controls"
