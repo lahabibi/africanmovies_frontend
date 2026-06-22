@@ -5738,12 +5738,23 @@
   min-width: 0;
 }
 
-.purchase-history-movie img {
+.purchase-history-movie img,
+.purchase-history-movie__placeholder {
   width: 52px;
   height: 68px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 5px;
+}
+
+.purchase-history-movie img {
   object-fit: cover;
+}
+
+.purchase-history-movie__placeholder {
+  display: inline-grid;
+  place-items: center;
+  color: var(--color-muted-strong);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .purchase-history-movie span,
@@ -5892,6 +5903,37 @@
   margin: 0;
   color: var(--color-muted-strong);
   font-size: 13px;
+}
+
+.purchase-history-empty--error > svg {
+  color: #ff707a;
+}
+
+.purchase-history-empty button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-top: 8px;
+  padding: 0 15px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.46);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: rgba(var(--color-blue-rgb), 0.11);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.purchase-history-empty button:hover,
+.purchase-history-empty button:focus-visible {
+  border-color: var(--color-blue);
+  background: rgba(var(--color-blue-rgb), 0.18);
+}
+
+.purchase-history-spinner {
+  animation: watchFlowSpin 850ms linear infinite;
 }
 
 .movie-detail-page {

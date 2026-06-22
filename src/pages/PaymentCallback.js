@@ -56,6 +56,7 @@ function PaymentCallback() {
       try {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["payments"] }),
           queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
           queryClient.invalidateQueries({ queryKey: ["watch-access"] }),
         ]);
@@ -127,6 +128,7 @@ function PaymentCallback() {
 
       if (closedAttempt?.code === "PAYMENT_ATTEMPT_CLOSED") {
         clearPendingPayment();
+        queryClient.invalidateQueries({ queryKey: ["payments"] });
       }
 
       const wasCancelled = providerStatus === "cancelled";
@@ -212,7 +214,13 @@ function PaymentCallback() {
         message: error?.message || "We could not confirm this payment.",
       });
     }
-  }, [continueToPlayback, location.pathname, location.search, navigate]);
+  }, [
+    continueToPlayback,
+    location.pathname,
+    location.search,
+    navigate,
+    queryClient,
+  ]);
 
   useEffect(() => {
     if (hasRunRef.current) return;

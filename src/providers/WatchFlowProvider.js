@@ -168,6 +168,7 @@ function WatchFlowProvider({ children }) {
       const resolvedMovieId = completedPayment?.movieId || movieId;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["payments"] }),
         queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
         queryClient.invalidateQueries({
           queryKey: getWatchAccessQueryKey(resolvedMovieId),

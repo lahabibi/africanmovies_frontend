@@ -1,15 +1,21 @@
 import { useMemo, useState } from "react";
 import {
+  AlertCircle,
   ChevronDown,
   ChevronRight,
+  Film,
+  LoaderCircle,
   ReceiptText,
+  RefreshCw,
   Search,
   SearchX,
 } from "lucide-react";
+import { Navigate, useLocation } from "react-router-dom";
 import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
-import { purchaseHistoryItems } from "../data/purchaseHistoryData";
+import { getAuthToken } from "../api/authToken";
+import { usePurchaseHistory } from "../hooks/usePayments";
 
 const statusFilters = [
   { id: "all", label: "All" },
@@ -18,16 +24,19 @@ const statusFilters = [
   { id: "failed", label: "Failed" },
 ];
 
-const sortOptions = [
-  { value: "recent", label: "Most Recent" },
-  { value: "title", label: "Title A-Z" },
-];
+const HISTORY_RANGE_SIZE = 8;
 
 function PurchaseHistory() {
+  const location = useLocation();
+  const historyQuery = usePurchaseHistory();
   const [activeStatus, setActiveStatus] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState("recent");
+  const [rangeIndex, setRangeIndex] = useState(0);
+  const purchaseHistoryItems = useMemo(
+    () => historyQuery.data?.items || [],
+    [historyQuery.data?.items],
+  );
 
   const statusCounts = useMemo(
     () =>
@@ -40,26 +49,36 @@ function PurchaseHistory() {
         },
         { all: 0, completed: 0, pending: 0, failed: 0 },
       ),
-    [],
+    [purchaseHistoryItems],
   );
 
-  const visibleItems = useMemo(() => {
+  const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const matchingItems = purchaseHistoryItems.filter((item) => {
+    return purchaseHistoryItems.filter((item) => {
       const matchesStatus =
         activeStatus === "all" ||
         getPaymentStatus(item).toLowerCase() === activeStatus;
       const searchText = `${item.movie.title} ${item.txRef}`.toLowerCase();
       return matchesStatus && (!normalizedQuery || searchText.includes(normalizedQuery));
     });
+  }, [activeStatus, purchaseHistoryItems, query]);
 
-    return [...matchingItems].sort((firstItem, secondItem) => {
-      if (sortBy === "title") {
-        return firstItem.movie.title.localeCompare(secondItem.movie.title);
-      }
-      return new Date(secondItem.createdAt) - new Date(firstItem.createdAt);
-    });
-  }, [activeStatus, query, sortBy]);
+  const rangeOptions = useMemo(
+    () => buildHistoryRanges(filteredItems.length),
+    [filteredItems.length],
+  );
+  const selectedRangeIndex = Math.min(
+    rangeIndex,
+    Math.max(0, rangeOptions.length - 1),
+  );
+  const visibleItems = useMemo(() => {
+    const start = selectedRangeIndex * HISTORY_RANGE_SIZE;
+    return filteredItems.slice(start, start + HISTORY_RANGE_SIZE);
+  }, [filteredItems, selectedRangeIndex]);
+
+  if (!getAuthToken()) {
+    return <Navigate replace state={{ from: location.pathname }} to="/signin" />;
+  }
 
   return (
     <AppShell>
@@ -93,7 +112,11 @@ function PurchaseHistory() {
                     aria-selected={activeStatus === filter.id}
                     className={activeStatus === filter.id ? "is-active" : undefined}
                     key={filter.id}
-                    onClick={() => setActiveStatus(filter.id)}
+                    onClick={() => {
+                      setActiveStatus(filter.id);
+                      setExpandedId(null);
+                      setRangeIndex(0);
+                    }}
                     role="tab"
                     type="button"
                   >
@@ -107,7 +130,11 @@ function PurchaseHistory() {
                 <label className="purchase-history-search">
                   <span className="sr-only">Search purchase history</span>
                   <input
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setExpandedId(null);
+                      setRangeIndex(0);
+                    }}
                     placeholder="Search movie or reference..."
                     type="search"
                     value={query}
@@ -116,24 +143,51 @@ function PurchaseHistory() {
                 </label>
 
                 <label className="purchase-history-sort">
-                  <span className="sr-only">Sort purchase history</span>
+                  <span className="sr-only">Select purchase history range</span>
                   <select
-                    aria-label="Sort purchase history"
-                    onChange={(event) => setSortBy(event.target.value)}
-                    value={sortBy}
+                    aria-label="Select purchase history range"
+                    disabled={!rangeOptions.length}
+                    onChange={(event) => {
+                      setExpandedId(null);
+                      setRangeIndex(Number(event.target.value));
+                    }}
+                    value={selectedRangeIndex}
                   >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
+                    {rangeOptions.length ? (
+                      rangeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="0">No items</option>
+                    )}
                   </select>
                   <ChevronDown aria-hidden="true" size={18} strokeWidth={1.8} />
                 </label>
               </div>
             </div>
 
-            {visibleItems.length ? (
+            {historyQuery.isLoading ? (
+              <PurchaseHistoryState
+                icon={<LoaderCircle className="purchase-history-spinner" />}
+                message="Gathering your transactions and movie access history."
+                title="Loading purchase history"
+              />
+            ) : historyQuery.isError ? (
+              <PurchaseHistoryState
+                actions={
+                  <button onClick={() => historyQuery.refetch()} type="button">
+                    <RefreshCw aria-hidden="true" size={17} />
+                    Try again
+                  </button>
+                }
+                icon={<AlertCircle />}
+                message="Your transactions could not be loaded right now."
+                title="Purchase history unavailable"
+                variant="error"
+              />
+            ) : visibleItems.length ? (
               <div className="purchase-history-list">
                 <div className="purchase-history-list__header" aria-hidden="true">
                   <span>Movie</span>
@@ -159,8 +213,16 @@ function PurchaseHistory() {
             ) : (
               <div className="purchase-history-empty">
                 <SearchX aria-hidden="true" size={32} strokeWidth={1.5} />
-                <strong>No purchases found</strong>
-                <p>Try another search or payment status.</p>
+                <strong>
+                  {purchaseHistoryItems.length
+                    ? "No purchases found"
+                    : "No purchase history yet"}
+                </strong>
+                <p>
+                  {purchaseHistoryItems.length
+                    ? "Try another search or payment status."
+                    : "Completed and attempted purchases will appear here."}
+                </p>
               </div>
             )}
           </section>
@@ -179,7 +241,13 @@ function PurchaseHistoryRow({ expanded, item, onToggle }) {
     <article className={`purchase-history-row${expanded ? " is-expanded" : ""}`}>
       <div className="purchase-history-row__summary">
         <div className="purchase-history-movie">
-          <img src={item.movie.posterUrl} alt="" aria-hidden="true" />
+          {item.movie.posterUrl ? (
+            <img src={item.movie.posterUrl} alt="" aria-hidden="true" />
+          ) : (
+            <span className="purchase-history-movie__placeholder" aria-hidden="true">
+              <Film size={20} strokeWidth={1.5} />
+            </span>
+          )}
           <span>
             <strong>{item.movie.title}</strong>
             <small>{item.payment?.paymentMethod || "Free movie claim"}</small>
@@ -239,8 +307,34 @@ function PurchaseHistoryRow({ expanded, item, onToggle }) {
   );
 }
 
+function PurchaseHistoryState({ actions, icon, message, title, variant = "default" }) {
+  return (
+    <div className={`purchase-history-empty purchase-history-empty--${variant}`}>
+      {icon}
+      <strong>{title}</strong>
+      <p>{message}</p>
+      {actions}
+    </div>
+  );
+}
+
 function getPaymentStatus(item) {
   return item.payment?.status || "Completed";
+}
+
+function buildHistoryRanges(totalItems) {
+  return Array.from(
+    { length: Math.ceil(totalItems / HISTORY_RANGE_SIZE) },
+    (_, index) => {
+      const start = index * HISTORY_RANGE_SIZE + 1;
+      const end = Math.min(totalItems, start + HISTORY_RANGE_SIZE - 1);
+
+      return {
+        value: index,
+        label: start === end ? String(start) : `${start} - ${end}`,
+      };
+    },
+  );
 }
 
 function getAccessLabel(status) {

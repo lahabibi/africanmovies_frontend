@@ -4,6 +4,10 @@ export function getSavedPaymentMethod() {
   return apiClient("/payment/token");
 }
 
+export function getPurchaseHistory({ limit = 100 } = {}) {
+  return apiClient(`/payment/history?limit=${encodeURIComponent(limit)}`);
+}
+
 export function savePaymentMethod({ isNewCard = true, transactionId }) {
   return apiClient("/payment/token", {
     body: {
