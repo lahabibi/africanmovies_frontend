@@ -1,5 +1,9 @@
 import { API_BASE_URL } from "../config/env";
 import { getAuthToken, getDeviceId } from "./authToken";
+import {
+  invalidateAuthSession,
+  isInvalidSessionResponse,
+} from "./authSession";
 
 export class ApiError extends Error {
   constructor(message, { data, status } = {}) {
@@ -48,6 +52,10 @@ export async function apiClient(endpoint, options = {}) {
   const data = await parseResponse(response);
 
   if (!response.ok) {
+    if (requireAuth && isInvalidSessionResponse(response, data)) {
+      invalidateAuthSession(data);
+    }
+
     throw new ApiError(getErrorMessage(data, response), {
       data,
       status: response.status,

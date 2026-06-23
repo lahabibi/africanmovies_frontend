@@ -25,6 +25,7 @@ function AuthPage() {
     ? "Start watching African stories today"
     : "Sign in to your account";
   const initialEmail = location.state?.email || "";
+  const sessionMessage = location.state?.sessionMessage;
   const [email, setEmail] = useState(initialEmail);
   const [errorMessage, setErrorMessage] = useState("");
   const requestOtpMutation = useRequestOtp();
@@ -63,6 +64,12 @@ function AuthPage() {
             <h2>{title}</h2>
             <p>{subtitle}</p>
           </div>
+
+          {sessionMessage ? (
+            <p className="auth-session-notice" role="status">
+              {sessionMessage}
+            </p>
+          ) : null}
 
           <div className="auth-envelope" aria-hidden="true">
             <span className="auth-envelope__burst" />

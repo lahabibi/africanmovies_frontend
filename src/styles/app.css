@@ -7165,6 +7165,19 @@
   color: rgba(198, 206, 218, 0.68);
 }
 
+.auth-session-notice {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.42);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted-strong);
+  background: rgba(var(--color-blue-rgb), 0.1);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .auth-form__error,
 .otp-form__error,
 .otp-form__status {

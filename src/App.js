@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import DeviceSessionEnricher from "./components/auth/DeviceSessionEnricher";
+import SessionInvalidationHandler from "./components/auth/SessionInvalidationHandler";
 import AllMovies from "./pages/AllMovies";
 import AuthPage from "./pages/AuthPage";
 import Genres from "./pages/Genres";
@@ -27,6 +28,7 @@ function App() {
     >
       <WatchFlowProvider>
         <DeviceSessionEnricher />
+        <SessionInvalidationHandler />
         <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/genres" element={<Genres />} />
