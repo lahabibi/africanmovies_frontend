@@ -204,6 +204,28 @@ function WatchFlowDialog({
           </>
         ) : null}
 
+        {flow.phase === "payment-refresh" ? (
+          <>
+            <WatchDialogBody
+              icon={<CreditCard />}
+              message="Your saved card token has expired. Enter card details to refresh it, or use a different card for this payment."
+              title="Refresh saved card"
+            />
+            <div className="watch-flow-modal__actions">
+              <button onClick={onClose} type="button">
+                Cancel
+              </button>
+              <button
+                className="watch-flow-modal__primary"
+                onClick={onPayWithNewCard}
+                type="button"
+              >
+                Enter card details
+              </button>
+            </div>
+          </>
+        ) : null}
+
         {flow.phase === "save-card" || flow.phase === "replace-card" ? (
           <>
             <WatchDialogBody

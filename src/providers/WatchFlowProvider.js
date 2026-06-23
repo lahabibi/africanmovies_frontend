@@ -522,6 +522,16 @@ function WatchFlowProvider({ children }) {
       if (requestIdRef.current !== requestId) return;
 
       if (response?.tokenPayload?._id) {
+        if (response.tokenStatus?.active === false) {
+          setFlow((current) => ({
+            ...current,
+            phase: "payment-refresh",
+            savedPayment: response.tokenPayload,
+            tokenStatus: response.tokenStatus,
+          }));
+          return;
+        }
+
         setFlow((current) => ({
           ...current,
           phase: "payment-choice",
@@ -613,7 +623,15 @@ function WatchFlowProvider({ children }) {
       ) {
         closePaymentWindow(paymentWindow);
         paymentWindowRef.current = null;
-        await startInlinePayment(movie, decision, { hadSavedCard: true });
+        setFlow((current) => ({
+          ...current,
+          phase: "payment-refresh",
+          tokenStatus: {
+            active: false,
+            reason: error?.data?.code,
+            refreshRequired: true,
+          },
+        }));
         return;
       }
 
@@ -633,7 +651,6 @@ function WatchFlowProvider({ children }) {
     flow.movie,
     preparePaymentWindow,
     redirectToCheckout,
-    startInlinePayment,
   ]);
 
   const confirmFreeClaim = useCallback(async () => {

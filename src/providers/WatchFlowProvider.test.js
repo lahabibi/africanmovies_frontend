@@ -220,6 +220,57 @@ test("offers saved or different card after the user continues to payment", async
   ).toBeInTheDocument();
 });
 
+test("requires card entry instead of offering an expired saved token", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  getWatchAccess.mockResolvedValue({
+    action: "PURCHASE",
+    movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
+    reason: "PURCHASE_REQUIRED",
+  });
+  getSavedPaymentMethod.mockResolvedValue({
+    tokenPayload: {
+      _id: "card-1",
+      cardType: "visa",
+      last4Digits: "4242",
+    },
+    tokenStatus: {
+      active: false,
+      reason: "token_expired",
+      refreshRequired: true,
+    },
+  });
+  initializeInlinePayment.mockResolvedValue({
+    amount: 10.99,
+    currency: "USD",
+    customer: { email: "viewer@example.com", name: "Viewer" },
+    publicKey: "FLWPUBK_TEST-key-X",
+    txRef: "tx-refresh-1",
+  });
+  renderFlow();
+
+  fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: "Refresh saved card" }),
+  ).toBeInTheDocument();
+  expect(chargeSavedCard).not.toHaveBeenCalled();
+  expect(openPaymentWindow).not.toHaveBeenCalled();
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Enter card details" }),
+  );
+
+  await waitFor(() => {
+    expect(initializeInlinePayment).toHaveBeenCalledWith(
+      movie.id,
+      expect.stringContaining(`web-inline-${movie.id}-`),
+    );
+  });
+});
+
 test("opens Flutterwave Inline without a popup when the user has no saved card", async () => {
   getAuthToken.mockReturnValue("test-token");
   getWatchAccess.mockResolvedValue({
