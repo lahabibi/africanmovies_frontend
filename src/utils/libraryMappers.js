@@ -14,7 +14,7 @@ export function mapLibraryItem(item = {}, now = new Date()) {
     movieId: String(item.movieId || ""),
     slug: String(item.movieId || item.slug || ""),
     title: item.title || "Untitled",
-    image: item.image || item.poster || "",
+    image: item.poster || "",
     price: Math.max(0, Number(item.price) || 0),
     currency: item.currency || "USD",
     purchasedAt: item.purchasedAt || "",

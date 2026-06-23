@@ -3698,20 +3698,12 @@
 
 .library-grid {
   display: grid;
-  gap: 18px;
-}
-
-.library-grid--active {
   grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.library-grid--expiring {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 14px;
 }
 
 .library-grid--expired {
-  grid-template-columns: repeat(2, minmax(240px, 540px));
-  justify-content: start;
+  justify-content: initial;
 }
 
 .library-card {
@@ -3723,7 +3715,7 @@
   isolation: isolate;
   display: block;
   overflow: hidden;
-  aspect-ratio: 1.04;
+  aspect-ratio: 0.72;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg-soft);
@@ -3735,11 +3727,11 @@
 }
 
 .library-grid--expiring .library-card__media {
-  aspect-ratio: 2.05;
+  aspect-ratio: 0.72;
 }
 
 .library-grid--expired .library-card__media {
-  aspect-ratio: 2.32;
+  aspect-ratio: 0.72;
 }
 
 .library-card__media:hover,
@@ -7427,8 +7419,10 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .library-grid--active {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .library-grid--active,
+  .library-grid--expiring,
+  .library-grid--expired {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .movies-grid {
@@ -7955,13 +7949,13 @@
   .library-grid--active,
   .library-grid--expiring,
   .library-grid--expired {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .library-grid--active .library-card__media,
   .library-grid--expiring .library-card__media,
   .library-grid--expired .library-card__media {
-    aspect-ratio: 1.62;
+    aspect-ratio: 0.72;
   }
 
   .movie-detail-hero {
@@ -8160,14 +8154,15 @@
   .library-grid--active,
   .library-grid--expiring,
   .library-grid--expired {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
   }
 
   .library-card__media,
   .library-grid--active .library-card__media,
   .library-grid--expiring .library-card__media,
   .library-grid--expired .library-card__media {
-    aspect-ratio: 1.75;
+    aspect-ratio: 0.72;
   }
 
   .movies-page__hero h1 {

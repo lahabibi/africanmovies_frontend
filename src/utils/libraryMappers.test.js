@@ -25,6 +25,21 @@ test("maps library progress and active time remaining", () => {
   });
 });
 
+test("uses only the movie thumbnail for library artwork", () => {
+  const withThumbnail = mapLibraryItem({
+    image: "banner.jpg",
+    movieId: "movie-1",
+    poster: "thumbnail.jpg",
+  });
+  const withoutThumbnail = mapLibraryItem({
+    image: "banner-only.jpg",
+    movieId: "movie-2",
+  });
+
+  expect(withThumbnail.image).toBe("thumbnail.jpg");
+  expect(withoutThumbnail.image).toBe("");
+});
+
 test("maps expired access and completed playback labels", () => {
   const expired = mapLibraryItem(
     {
