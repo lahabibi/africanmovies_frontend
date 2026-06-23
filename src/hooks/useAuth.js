@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  deleteProfileImage,
   getUserById,
   logout,
   requestOtp,
+  updateUsername,
+  uploadProfileImage,
   verifyOtp,
 } from "../api/authApi";
 import {
@@ -78,6 +81,69 @@ export function useLogout() {
       queryClient.removeQueries({ queryKey: ["orders"] });
     },
   });
+}
+
+export function useUpdateUsername() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateUsername,
+    onSuccess: (data) => {
+      commitCurrentUser(queryClient, data?.user, data?.token);
+    },
+  });
+}
+
+export function useUploadProfileImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadProfileImage,
+    onSuccess: (data) => {
+      const currentUser =
+        queryClient.getQueryData(authKeys.currentUser) || getStoredAuthUser();
+      commitCurrentUser(
+        queryClient,
+        {
+          ...currentUser,
+          avatar: data?.fileLocation,
+          profileURL: data?.fileLocation,
+        },
+        data?.token,
+      );
+    },
+  });
+}
+
+export function useDeleteProfileImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProfileImage,
+    onSuccess: (data) => {
+      const currentUser =
+        queryClient.getQueryData(authKeys.currentUser) || getStoredAuthUser();
+      commitCurrentUser(
+        queryClient,
+        {
+          ...currentUser,
+          avatar: data?.profileURL,
+          profileURL: data?.profileURL,
+        },
+        data?.token,
+      );
+    },
+  });
+}
+
+function commitCurrentUser(queryClient, user, token) {
+  if (token) {
+    setAuthToken(token);
+  }
+
+  const normalizedUser = normalizeUser(user);
+  setStoredAuthUser(normalizedUser);
+  queryClient.setQueryData(authKeys.currentUser, normalizedUser);
 }
 
 function normalizeUser(user) {

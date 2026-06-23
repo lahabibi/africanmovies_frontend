@@ -33,3 +33,26 @@ export function logout() {
     method: "POST",
   });
 }
+
+export function updateUsername(username) {
+  return apiClient("/auth/update-username", {
+    body: { username },
+    method: "POST",
+  });
+}
+
+export function uploadProfileImage(file) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return apiClient("/auth/upload", {
+    body,
+    method: "POST",
+  });
+}
+
+export function deleteProfileImage() {
+  return apiClient("/auth/profileimage", {
+    method: "DELETE",
+  });
+}

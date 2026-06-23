@@ -1,22 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  AlertCircle,
   Camera,
-  ChevronDown,
+  CheckCircle2,
   ExternalLink,
   Headphones,
+  ImagePlus,
   Laptop,
   LogOut,
   Monitor,
   MoreVertical,
   Pencil,
   Smartphone,
+  Trash2,
 } from "lucide-react";
 import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
-import { currentUser } from "../data/sessionData";
-import { activeDevices, profileInfo } from "../data/profileData";
+import { activeDevices } from "../data/profileData";
 import Footer from "../components/layout/Footer";
+import {
+  useCurrentUser,
+  useDeleteProfileImage,
+  useUpdateUsername,
+  useUploadProfileImage,
+} from "../hooks/useAuth";
+
+const DEFAULT_PROFILE_URL =
+  "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
+const PROFILE_IMAGE_TYPES = new Set([
+  "image/avif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const deviceIcons = {
   laptop: Laptop,
@@ -26,6 +44,68 @@ const deviceIcons = {
 
 function Profile() {
   const [editingField, setEditingField] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
+  const currentUserQuery = useCurrentUser();
+  const updateUsernameMutation = useUpdateUsername();
+  const uploadProfileImageMutation = useUploadProfileImage();
+  const deleteProfileImageMutation = useDeleteProfileImage();
+  const user = currentUserQuery.data;
+
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const showNotice = (message, variant = "success") => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+
+    setNotice({ message, variant });
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null);
+      noticeTimerRef.current = null;
+    }, 3500);
+  };
+
+  const handleSaveUsername = async (username) => {
+    await updateUsernameMutation.mutateAsync(username);
+    setEditingField(null);
+    showNotice("Username updated successfully");
+  };
+
+  const handleUploadProfileImage = async (file) => {
+    if (!PROFILE_IMAGE_TYPES.has(file?.type)) {
+      showNotice("Choose a JPG, PNG, WebP, or AVIF image.", "error");
+      return;
+    }
+
+    if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+      showNotice("Profile images must be 5 MB or smaller.", "error");
+      return;
+    }
+
+    try {
+      await uploadProfileImageMutation.mutateAsync(file);
+      showNotice("Profile picture updated successfully");
+    } catch (error) {
+      showNotice(error?.message || "Profile picture upload failed.", "error");
+    }
+  };
+
+  const handleDeleteProfileImage = async () => {
+    try {
+      await deleteProfileImageMutation.mutateAsync();
+      showNotice("Profile picture removed");
+    } catch (error) {
+      showNotice(error?.message || "Profile picture could not be removed.", "error");
+    }
+  };
 
   return (
     <AppShell>
@@ -33,6 +113,21 @@ function Profile() {
         <AccountSidebar activeId="profile" ariaLabel="Profile settings" />
 
         <section className="profile-content" aria-labelledby="profile-title">
+          {notice ? (
+            <div
+              aria-live="polite"
+              className={`profile-toast profile-toast--${notice.variant}`}
+              role={notice.variant === "error" ? "alert" : "status"}
+            >
+              {notice.variant === "error" ? (
+                <AlertCircle aria-hidden="true" size={20} strokeWidth={2} />
+              ) : (
+                <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2} />
+              )}
+              <span>{notice.message}</span>
+            </div>
+          ) : null}
+
           <header className="profile-heading">
             <h1 id="profile-title">My Profile</h1>
             <p>Manage your profile information and preferences.</p>
@@ -40,7 +135,14 @@ function Profile() {
 
           <div className="profile-layout">
             <div className="profile-main">
-              <ProfileInformation onEditField={setEditingField} />
+              <ProfileInformation
+                isDeleting={deleteProfileImageMutation.isPending}
+                isUploading={uploadProfileImageMutation.isPending}
+                onDeleteProfileImage={handleDeleteProfileImage}
+                onEditField={setEditingField}
+                onUploadProfileImage={handleUploadProfileImage}
+                user={user}
+              />
               <ActiveDevices />
             </div>
 
@@ -52,6 +154,7 @@ function Profile() {
         <EditProfileFieldModal
           field={editingField}
           onClose={() => setEditingField(null)}
+          onSave={handleSaveUsername}
         />
       ) : null}
       <Footer />
@@ -59,37 +162,71 @@ function Profile() {
   );
 }
 
-function ProfileInformation({ onEditField }) {
+function ProfileInformation({
+  isDeleting,
+  isUploading,
+  onDeleteProfileImage,
+  onEditField,
+  onUploadProfileImage,
+  user,
+}) {
+  const avatarMenuRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const username = user?.username || user?.name || "User";
+  const avatar = user?.profileURL || user?.avatar || DEFAULT_PROFILE_URL;
+  const canRemoveAvatar = Boolean(
+    user?.profileURL && user.profileURL !== DEFAULT_PROFILE_URL,
+  );
   const fields = [
     {
-      id: "fullName",
-      label: "Full Name",
+      id: "username",
+      label: "Username",
       type: "text",
-      value: profileInfo.fullName,
+      value: username,
       editable: true,
     },
     {
       id: "email",
       label: "Email Address",
       type: "email",
-      value: profileInfo.email,
-      editable: true,
-    },
-    {
-      id: "phoneNumber",
-      label: "Phone Number",
-      type: "tel",
-      value: profileInfo.phoneNumber,
-      editable: true,
+      value: user?.email || "",
+      editable: false,
     },
     {
       id: "preferredLanguage",
       label: "Preferred Language",
-      value: profileInfo.preferredLanguage,
+      value: "English",
       editable: false,
-      dropdown: true,
     },
   ];
+
+  useEffect(() => {
+    if (!isAvatarMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!avatarMenuRef.current?.contains(event.target)) {
+        setIsAvatarMenuOpen(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setIsAvatarMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isAvatarMenuOpen]);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    setIsAvatarMenuOpen(false);
+    if (file) onUploadProfileImage(file);
+  };
 
   return (
     <section
@@ -99,11 +236,52 @@ function ProfileInformation({ onEditField }) {
       <h2 id="profile-info-title">Profile Information</h2>
 
       <div className="profile-info-card__body">
-        <div className="profile-avatar-editor">
-          <img src={currentUser.avatar} alt="" aria-hidden="true" />
-          <button type="button" aria-label="Change profile photo">
+        <div className="profile-avatar-editor" ref={avatarMenuRef}>
+          <img src={avatar} alt={`${username} profile`} />
+          <input
+            accept="image/avif,image/jpeg,image/png,image/webp"
+            aria-label="Upload profile photo"
+            className="sr-only"
+            onChange={handleFileChange}
+            ref={fileInputRef}
+            type="file"
+          />
+          <button
+            aria-expanded={isAvatarMenuOpen}
+            aria-haspopup="menu"
+            disabled={isDeleting || isUploading}
+            onClick={() => setIsAvatarMenuOpen((isOpen) => !isOpen)}
+            type="button"
+            aria-label="Change profile photo"
+          >
             <Camera aria-hidden="true" size={18} strokeWidth={1.9} />
           </button>
+          {isAvatarMenuOpen ? (
+            <div className="profile-avatar-menu" role="menu">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                role="menuitem"
+                type="button"
+              >
+                <ImagePlus aria-hidden="true" size={17} strokeWidth={1.9} />
+                Upload photo
+              </button>
+              {canRemoveAvatar ? (
+                <button
+                  className="profile-avatar-menu__remove"
+                  onClick={() => {
+                    setIsAvatarMenuOpen(false);
+                    onDeleteProfileImage();
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={17} strokeWidth={1.9} />
+                  Remove photo
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="profile-fields">
@@ -120,11 +298,6 @@ function ProfileInformation({ onEditField }) {
                   onClick={() => onEditField(field)}
                 >
                   <Pencil aria-hidden="true" size={18} strokeWidth={1.8} />
-                </button>
-              ) : null}
-              {field.dropdown ? (
-                <button type="button" aria-label="Change preferred language">
-                  <ChevronDown aria-hidden="true" size={19} strokeWidth={1.8} />
                 </button>
               ) : null}
             </div>
@@ -253,8 +426,10 @@ function NeedHelpCard() {
   );
 }
 
-function EditProfileFieldModal({ field, onClose }) {
+function EditProfileFieldModal({ field, onClose, onSave }) {
   const [value, setValue] = useState(field.value);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -272,9 +447,23 @@ function EditProfileFieldModal({ field, onClose }) {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onClose();
+    const username = value.trim();
+
+    if (username.length < 2 || username.length > 50) {
+      setError("Username must be between 2 and 50 characters.");
+      return;
+    }
+
+    setError("");
+    setIsSaving(true);
+    try {
+      await onSave(username);
+    } catch (saveError) {
+      setError(saveError?.message || "Username could not be updated.");
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -286,7 +475,7 @@ function EditProfileFieldModal({ field, onClose }) {
       >
         <div className="profile-modal__heading">
           <h2>Edit {field.label}</h2>
-          <p>Update this detail now. We will connect saving to the API later.</p>
+          <p>This name appears across your AfricanMovies account.</p>
         </div>
 
         <label className="profile-modal__field">
@@ -299,11 +488,15 @@ function EditProfileFieldModal({ field, onClose }) {
           />
         </label>
 
+        {error ? <p className="profile-modal__error">{error}</p> : null}
+
         <div className="profile-modal__actions">
-          <button type="button" onClick={onClose}>
+          <button disabled={isSaving} type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit">Save Changes</button>
+          <button disabled={isSaving} type="submit">
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
         </div>
       </form>
     </div>
