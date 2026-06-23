@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   Bookmark,
@@ -14,7 +14,6 @@ import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
 import MoviePosterCard from "../components/movie/MoviePosterCard";
-import { getAuthToken } from "../api/authToken";
 import { useRemoveSavedMovie, useSavedMovies } from "../hooks/useCatalog";
 import { useActiveOrders } from "../hooks/useOrders";
 import { buildActiveMovieAccessMap } from "../utils/catalogMappers";
@@ -48,7 +47,6 @@ const sortOptions = [
 const GRID_SKELETON_COUNT = 10;
 
 function SavedMovies({ collectionType }) {
-  const location = useLocation();
   const config = collectionConfig[collectionType] || collectionConfig.favorites;
   const favoritesQuery = useSavedMovies("favorites");
   const watchlistQuery = useSavedMovies("watchlist");
@@ -64,7 +62,6 @@ function SavedMovies({ collectionType }) {
   const [sortBy, setSortBy] = useState("recent");
   const [feedback, setFeedback] = useState(null);
   const feedbackTimer = useRef(null);
-  const isAuthenticated = Boolean(getAuthToken());
   const isPageLoading =
     activeCollectionQuery.isLoading || activeOrdersQuery.isLoading;
   const isPageError = activeCollectionQuery.isError;
@@ -99,10 +96,6 @@ function SavedMovies({ collectionType }) {
     },
     [],
   );
-
-  if (!isAuthenticated) {
-    return <Navigate replace state={{ from: location.pathname }} to="/signin" />;
-  }
 
   const showFeedback = (message, variant = "success") => {
     if (feedbackTimer.current) {

@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import DeviceSessionEnricher from "./components/auth/DeviceSessionEnricher";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import SessionInvalidationHandler from "./components/auth/SessionInvalidationHandler";
 import AllMovies from "./pages/AllMovies";
 import AuthPage from "./pages/AuthPage";
@@ -30,69 +31,75 @@ function App() {
         <DeviceSessionEnricher />
         <SessionInvalidationHandler />
         <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/genres" element={<Genres />} />
-        <Route path="/genres/:genreSlug" element={<Genres />} />
-        <Route path="/languages" element={<Languages />} />
-        <Route path="/languages/:languageSlug" element={<Languages />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route
-          path="/account-settings"
-          element={<PlaceholderPage title="Account Settings" />}
-        />
-        <Route
-          path="/payment-details"
-          element={<PaymentDetails />}
-        />
-        <Route path="/process-payment" element={<PaymentCallback />} />
-        <Route path="/process-token-payment" element={<PaymentCallback />} />
-        <Route path="/payment-processing" element={<PaymentProcessing />} />
-        <Route
-          path="/favorites"
-          element={<SavedMovies collectionType="favorites" />}
-        />
-        <Route
-          path="/watchlist"
-          element={<SavedMovies collectionType="watchlist" />}
-        />
-        <Route
-          path="/devices"
-          element={<Navigate replace to="/profile#active-devices" />}
-        />
-        <Route
-          path="/purchase-history"
-          element={<PurchaseHistory />}
-        />
-        <Route
-          path="/parental-controls"
-          element={<PlaceholderPage title="Parental Controls" />}
-        />
-        <Route path="/playback/:movieId" element={<Playback />} />
-        <Route
-          path="/subtitles-audio"
-          element={<PlaceholderPage title="Subtitles & Audio" />}
-        />
-        <Route
-          path="/notifications"
-          element={<PlaceholderPage title="Notifications" />}
-        />
+          <Route path="/" element={<Home />} />
+          <Route path="/genres" element={<Genres />} />
+          <Route path="/genres/:genreSlug" element={<Genres />} />
+          <Route path="/languages" element={<Languages />} />
+          <Route path="/languages/:languageSlug" element={<Languages />} />
 
-        <Route
-          path="/support"
-          element={<PlaceholderPage title="Help & Support" />}
-        />
-        <Route
-          path="/contact-us"
-          element={<PlaceholderPage title="Contact Us" />}
-        />
-        <Route path="/search" element={<Search />} />
-        <Route path="/signin" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage />} />
-        <Route path="/otp" element={<OtpPage />} />
-        <Route path="/movies" element={<AllMovies />} />
-        <Route path="/movies/:slug" element={<MovieDetails />} />
-        <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/library" element={<Library />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route
+              path="/account-settings"
+              element={<PlaceholderPage title="Account Settings" />}
+            />
+            <Route path="/payment-details" element={<PaymentDetails />} />
+            <Route
+              path="/favorites"
+              element={<SavedMovies collectionType="favorites" />}
+            />
+            <Route
+              path="/watchlist"
+              element={<SavedMovies collectionType="watchlist" />}
+            />
+            <Route
+              path="/devices"
+              element={<Navigate replace to="/profile#active-devices" />}
+            />
+            <Route path="/purchase-history" element={<PurchaseHistory />} />
+            <Route
+              path="/parental-controls"
+              element={<PlaceholderPage title="Parental Controls" />}
+            />
+            <Route
+              path="/subtitles-audio"
+              element={<PlaceholderPage title="Subtitles & Audio" />}
+            />
+            <Route
+              path="/notifications"
+              element={<PlaceholderPage title="Notifications" />}
+            />
+          </Route>
+
+          <Route path="/process-payment" element={<PaymentCallback />} />
+          <Route
+            path="/process-token-payment"
+            element={<PaymentCallback />}
+          />
+          <Route
+            path="/payment-processing"
+            element={<PaymentProcessing />}
+          />
+          <Route path="/playback/:movieId" element={<Playback />} />
+          <Route
+            path="/support"
+            element={<PlaceholderPage title="Help & Support" />}
+          />
+          <Route
+            path="/contact-us"
+            element={<PlaceholderPage title="Contact Us" />}
+          />
+          <Route path="/search" element={<Search />} />
+          <Route path="/signin" element={<AuthPage />} />
+          <Route path="/signup" element={<AuthPage />} />
+          <Route path="/otp" element={<OtpPage />} />
+          <Route path="/movies" element={<AllMovies />} />
+          <Route path="/movies/:slug" element={<MovieDetails />} />
+          <Route
+            path="*"
+            element={<PlaceholderPage title="Page Not Found" />}
+          />
         </Routes>
       </WatchFlowProvider>
     </BrowserRouter>

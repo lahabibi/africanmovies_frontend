@@ -1,9 +1,8 @@
 import { ChevronDown, LockKeyhole, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
-import { getAuthToken } from "../api/authToken";
 import { useLibrary } from "../hooks/useOrders";
 
 const librarySectionConfig = [
@@ -30,7 +29,6 @@ const librarySortOptions = [
 ];
 
 function Library() {
-  const location = useLocation();
   const libraryQuery = useLibrary();
   const [activeTab, setActiveTab] = useState("all");
   const [query, setQuery] = useState("");
@@ -88,10 +86,6 @@ function Library() {
   }, [activeTab, query, sections, sortBy]);
 
   const hasResults = visibleSections.length > 0;
-
-  if (!getAuthToken()) {
-    return <Navigate replace state={{ from: location.pathname }} to="/signin" />;
-  }
 
   return (
     <AppShell>

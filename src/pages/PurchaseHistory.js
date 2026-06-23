@@ -10,11 +10,9 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Navigate, useLocation } from "react-router-dom";
 import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
-import { getAuthToken } from "../api/authToken";
 import { usePurchaseHistory } from "../hooks/usePayments";
 
 const statusFilters = [
@@ -27,7 +25,6 @@ const statusFilters = [
 const HISTORY_RANGE_SIZE = 8;
 
 function PurchaseHistory() {
-  const location = useLocation();
   const historyQuery = usePurchaseHistory();
   const [activeStatus, setActiveStatus] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
@@ -75,10 +72,6 @@ function PurchaseHistory() {
     const start = selectedRangeIndex * HISTORY_RANGE_SIZE;
     return filteredItems.slice(start, start + HISTORY_RANGE_SIZE);
   }, [filteredItems, selectedRangeIndex]);
-
-  if (!getAuthToken()) {
-    return <Navigate replace state={{ from: location.pathname }} to="/signin" />;
-  }
 
   return (
     <AppShell>
