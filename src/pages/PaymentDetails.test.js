@@ -1,6 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { useSavedPaymentMethod } from "../hooks/usePayments";
+import {
+  useDeleteSavedPaymentMethod,
+  useSavedPaymentMethod,
+} from "../hooks/usePayments";
 import PaymentDetails from "./PaymentDetails";
 
 jest.mock("../components/layout/AppShell", () => ({ children }) => (
@@ -9,10 +12,12 @@ jest.mock("../components/layout/AppShell", () => ({ children }) => (
 jest.mock("../components/layout/Footer", () => () => null);
 jest.mock("../components/account/AccountSidebar", () => () => null);
 jest.mock("../hooks/usePayments", () => ({
+  useDeleteSavedPaymentMethod: jest.fn(),
   useSavedPaymentMethod: jest.fn(),
 }));
 
 const refetchSavedPaymentMethod = jest.fn();
+const deleteSavedPaymentMethod = jest.fn();
 
 function renderPaymentDetails() {
   return render(
@@ -25,6 +30,11 @@ function renderPaymentDetails() {
 }
 
 beforeEach(() => {
+  deleteSavedPaymentMethod.mockResolvedValue({ deleted: true });
+  useDeleteSavedPaymentMethod.mockReturnValue({
+    isPending: false,
+    mutateAsync: deleteSavedPaymentMethod,
+  });
   useSavedPaymentMethod.mockReturnValue({
     data: {
       brand: "visa",
@@ -87,4 +97,29 @@ test("allows a failed saved-card request to be retried", () => {
   fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
 
   expect(refetchSavedPaymentMethod).toHaveBeenCalledTimes(1);
+});
+
+test("removes the saved card only after confirmation", async () => {
+  renderPaymentDetails();
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove Visa ending in 4242" }),
+  );
+
+  expect(deleteSavedPaymentMethod).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("heading", { name: "Remove saved card?" }),
+  ).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Remove Card" }));
+
+  await waitFor(() => {
+    expect(deleteSavedPaymentMethod).toHaveBeenCalledTimes(1);
+  });
+  expect(
+    await screen.findByText("Saved card removed successfully"),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Remove saved card?" }),
+  ).not.toBeInTheDocument();
 });

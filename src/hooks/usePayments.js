@@ -1,6 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAuthToken, getStoredAuthUser } from "../api/authToken";
-import { getPurchaseHistory, getSavedPaymentMethod } from "../api/paymentApi";
+import {
+  deleteSavedPaymentMethod,
+  getPurchaseHistory,
+  getSavedPaymentMethod,
+} from "../api/paymentApi";
 import { mapSavedPaymentMethodResponse } from "../utils/paymentMethodMappers";
 import { mapPurchaseHistoryResponse } from "../utils/purchaseHistoryMappers";
 
@@ -40,5 +44,19 @@ export function useSavedPaymentMethod() {
       mapSavedPaymentMethodResponse(await getSavedPaymentMethod()),
     queryKey: paymentKeys.savedMethod(ownerKey),
     staleTime: 0,
+  });
+}
+
+export function useDeleteSavedPaymentMethod() {
+  const queryClient = useQueryClient();
+  const token = getAuthToken();
+  const storedUser = getStoredAuthUser();
+  const ownerKey = getPaymentOwnerKey(token, storedUser);
+
+  return useMutation({
+    mutationFn: deleteSavedPaymentMethod,
+    onSuccess: () => {
+      queryClient.setQueryData(paymentKeys.savedMethod(ownerKey), null);
+    },
   });
 }

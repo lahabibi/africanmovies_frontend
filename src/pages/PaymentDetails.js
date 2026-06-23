@@ -1,22 +1,64 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  CheckCircle2,
   CreditCard,
   ExternalLink,
   Headphones,
   LockKeyhole,
   ShieldCheck,
+  Trash2,
   Zap,
 } from "lucide-react";
 import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
 import Footer from "../components/layout/Footer";
-import { useSavedPaymentMethod } from "../hooks/usePayments";
+import {
+  useDeleteSavedPaymentMethod,
+  useSavedPaymentMethod,
+} from "../hooks/usePayments";
 import { getSavedCardAttentionCopy } from "../utils/paymentMethodMappers";
 
 function PaymentDetails() {
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
   const savedPaymentMethodQuery = useSavedPaymentMethod();
+  const deleteSavedPaymentMethodMutation = useDeleteSavedPaymentMethod();
+
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const showNotice = (message, variant = "success") => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+
+    setNotice({ message, variant });
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null);
+      noticeTimerRef.current = null;
+    }, 3500);
+  };
+
+  const handleRemoveSavedCard = async () => {
+    try {
+      await deleteSavedPaymentMethodMutation.mutateAsync();
+      setIsRemoveConfirmOpen(false);
+      showNotice("Saved card removed successfully");
+    } catch (error) {
+      setIsRemoveConfirmOpen(false);
+      showNotice(error?.message || "Saved card could not be removed.", "error");
+    }
+  };
 
   return (
     <AppShell>
@@ -24,6 +66,21 @@ function PaymentDetails() {
         <AccountSidebar activeId="payment-details" ariaLabel="Payment settings" />
 
         <section className="profile-content" aria-labelledby="payment-title">
+          {notice ? (
+            <div
+              aria-live="polite"
+              className={`profile-toast profile-toast--${notice.variant}`}
+              role={notice.variant === "error" ? "alert" : "status"}
+            >
+              {notice.variant === "error" ? (
+                <AlertCircle aria-hidden="true" size={20} strokeWidth={2} />
+              ) : (
+                <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2} />
+              )}
+              <span>{notice.message}</span>
+            </div>
+          ) : null}
+
           <div className="profile-layout">
             <div className="profile-main">
               <header className="profile-heading payment-heading">
@@ -35,6 +92,7 @@ function PaymentDetails() {
                 isError={savedPaymentMethodQuery.isError}
                 isLoading={savedPaymentMethodQuery.isLoading}
                 method={savedPaymentMethodQuery.data}
+                onRemove={() => setIsRemoveConfirmOpen(true)}
                 onRetry={() => savedPaymentMethodQuery.refetch()}
               />
             </div>
@@ -43,12 +101,29 @@ function PaymentDetails() {
           </div>
         </section>
       </main>
+      {isRemoveConfirmOpen ? (
+        <RemoveSavedCardConfirm
+          isPending={deleteSavedPaymentMethodMutation.isPending}
+          onCancel={() => {
+            if (!deleteSavedPaymentMethodMutation.isPending) {
+              setIsRemoveConfirmOpen(false);
+            }
+          }}
+          onConfirm={handleRemoveSavedCard}
+        />
+      ) : null}
       <Footer />
     </AppShell>
   );
 }
 
-function SavedPaymentMethods({ isError, isLoading, method, onRetry }) {
+function SavedPaymentMethods({
+  isError,
+  isLoading,
+  method,
+  onRemove,
+  onRetry,
+}) {
   const hasActiveCard = method?.status === "active";
   const needsAttention = method?.status === "attention";
   const attentionCopy = needsAttention
@@ -70,7 +145,7 @@ function SavedPaymentMethods({ isError, isLoading, method, onRetry }) {
       ) : isError ? (
         <PaymentMethodError onRetry={onRetry} />
       ) : method ? (
-        <PaymentMethodCard method={method} />
+        <PaymentMethodCard method={method} onRemove={onRemove} />
       ) : (
         <EmptyPaymentMethod />
       )}
@@ -148,7 +223,7 @@ function PaymentCardNote({ description, icon: Icon, isWarning, title }) {
   );
 }
 
-function PaymentMethodCard({ method }) {
+function PaymentMethodCard({ method, onRemove }) {
   const needsAttention = method.status === "attention";
 
   return (
@@ -164,17 +239,83 @@ function PaymentMethodCard({ method }) {
         </small>
       </div>
 
-      <span
-        className={`payment-method-card__status${needsAttention ? " payment-method-card__status--expired" : ""}`}
-      >
-        {needsAttention ? (
-          <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
-        ) : (
-          <ShieldCheck aria-hidden="true" size={16} strokeWidth={1.9} />
-        )}
-        {method.statusLabel}
-      </span>
+      <div className="payment-method-card__actions">
+        <span
+          className={`payment-method-card__status${needsAttention ? " payment-method-card__status--expired" : ""}`}
+        >
+          {needsAttention ? (
+            <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
+          ) : (
+            <ShieldCheck aria-hidden="true" size={16} strokeWidth={1.9} />
+          )}
+          {method.statusLabel}
+        </span>
+        <button
+          aria-label={`Remove ${method.title}`}
+          className="payment-method-card__remove"
+          onClick={onRemove}
+          type="button"
+        >
+          <Trash2 aria-hidden="true" size={16} strokeWidth={1.8} />
+          Remove
+        </button>
+      </div>
     </article>
+  );
+}
+
+function RemoveSavedCardConfirm({ isPending, onCancel, onConfirm }) {
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !isPending) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isPending, onCancel]);
+
+  return (
+    <div className="profile-modal" onMouseDown={onCancel} role="presentation">
+      <section
+        aria-labelledby="remove-saved-card-title"
+        aria-modal="true"
+        className="profile-modal__card"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="profile-modal__heading">
+          <h2 id="remove-saved-card-title">Remove saved card?</h2>
+          <p>
+            You can still use this card later, but you will need to enter its
+            details again during checkout.
+          </p>
+        </div>
+        <div className="profile-modal__actions">
+          <button
+            disabled={isPending}
+            onClick={onCancel}
+            ref={cancelRef}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="payment-remove-confirm__submit"
+            disabled={isPending}
+            onClick={onConfirm}
+            type="button"
+          >
+            {isPending ? "Removing..." : "Remove Card"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 

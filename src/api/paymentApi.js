@@ -4,6 +4,12 @@ export function getSavedPaymentMethod() {
   return apiClient("/payment/token");
 }
 
+export function deleteSavedPaymentMethod() {
+  return apiClient("/payment/token", {
+    method: "DELETE",
+  });
+}
+
 export function getPurchaseHistory({ limit = 100 } = {}) {
   return apiClient(`/payment/history?limit=${encodeURIComponent(limit)}`);
 }

@@ -5674,6 +5674,49 @@
   background: rgba(255, 176, 38, 0.11);
 }
 
+.payment-method-card__actions {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.payment-method-card__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 86px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #ff7e8d;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.payment-method-card__remove:hover,
+.payment-method-card__remove:focus-visible {
+  border-color: rgba(255, 91, 108, 0.28);
+  background: rgba(255, 91, 108, 0.08);
+}
+
+.profile-modal__actions .payment-remove-confirm__submit {
+  border-color: rgba(255, 91, 108, 0.34);
+  color: #fff;
+  background: #b52e3d;
+  font-weight: 700;
+}
+
+.profile-modal__actions .payment-remove-confirm__submit:hover,
+.profile-modal__actions .payment-remove-confirm__submit:focus-visible {
+  border-color: rgba(255, 126, 141, 0.76);
+  background: #c53747;
+}
+
 .payment-method-card__details small {
   color: var(--color-muted-strong);
   font-size: 15px;
@@ -8590,9 +8633,10 @@
     gap: 14px;
   }
 
-  .payment-method-card__status {
+  .payment-method-card__actions {
     grid-column: 2 / 3;
     justify-self: start;
+    justify-items: start;
   }
 
   .payment-method-loading {
