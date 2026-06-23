@@ -1,8 +1,5 @@
-import { ensureDeviceId } from "../api/authToken";
-
-export function getDevicePayload() {
+export function getDeviceMetadata() {
   return {
-    deviceId: ensureDeviceId(),
     deviceName: getDeviceName(),
     deviceType: getDeviceType(),
     os: getOperatingSystem(),

@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import DeviceSessionEnricher from "./components/auth/DeviceSessionEnricher";
 import AllMovies from "./pages/AllMovies";
 import AuthPage from "./pages/AuthPage";
 import Genres from "./pages/Genres";
@@ -25,6 +26,7 @@ function App() {
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
       <WatchFlowProvider>
+        <DeviceSessionEnricher />
         <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/genres" element={<Genres />} />

@@ -210,6 +210,12 @@ test("shows the active device count and logs out a non-current device", async ()
   );
   fireEvent.click(screen.getByRole("menuitem", { name: "Logout Device" }));
 
+  expect(logoutDevice).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("heading", { name: "Sign out Living Room TV?" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
+
   await waitFor(() => {
     expect(logoutDevice).toHaveBeenCalledWith("session-tv");
   });

@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
-import { getDevicePayload } from "../utils/deviceInfo";
+import { ensureDeviceId } from "./authToken";
+import { getDeviceMetadata } from "../utils/deviceInfo";
 
 export function requestOtp(email) {
   return apiClient("/auth/request-otp", {
@@ -13,9 +14,16 @@ export function verifyOtp({ email, otp }) {
     body: {
       email,
       otp,
-      ...getDevicePayload(),
+      deviceId: ensureDeviceId(),
     },
     requireAuth: false,
+  });
+}
+
+export function enrichCurrentDevice() {
+  return apiClient("/auth/devices/enrich", {
+    body: getDeviceMetadata(),
+    method: "POST",
   });
 }
 

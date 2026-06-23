@@ -343,6 +343,7 @@ function ProfileInformation({
 function ActiveDevices({ onNotice }) {
   const [isLogoutOthersConfirmOpen, setIsLogoutOthersConfirmOpen] =
     useState(false);
+  const [devicePendingLogout, setDevicePendingLogout] = useState(null);
   const devicesQuery = useActiveDevices();
   const logoutDeviceMutation = useLogoutDevice();
   const logoutOtherDevicesMutation = useLogoutOtherDevices();
@@ -354,6 +355,7 @@ function ActiveDevices({ onNotice }) {
   const handleLogoutDevice = async (device) => {
     try {
       await logoutDeviceMutation.mutateAsync(device.id);
+      setDevicePendingLogout(null);
       onNotice(`${device.name} signed out`);
     } catch (error) {
       onNotice(error?.message || "Device could not be signed out.", "error");
@@ -419,13 +421,22 @@ function ActiveDevices({ onNotice }) {
                 String(logoutDeviceMutation.variables) === device.id
               }
               key={device.id}
-              onLogout={handleLogoutDevice}
+              onLogout={setDevicePendingLogout}
             />
           ))
         ) : (
           <DeviceState message="No active devices were found." />
         )}
       </div>
+
+      {devicePendingLogout ? (
+        <DeviceLogoutConfirm
+          deviceName={devicePendingLogout.name}
+          isPending={logoutDeviceMutation.isPending}
+          onCancel={() => setDevicePendingLogout(null)}
+          onConfirm={() => handleLogoutDevice(devicePendingLogout)}
+        />
+      ) : null}
 
       {isLogoutOthersConfirmOpen ? (
         <DeviceLogoutConfirm
@@ -534,7 +545,15 @@ function DeviceState({ actionLabel, message, onAction }) {
   );
 }
 
-function DeviceLogoutConfirm({ count, isPending, onCancel, onConfirm }) {
+function DeviceLogoutConfirm({
+  count,
+  deviceName,
+  isPending,
+  onCancel,
+  onConfirm,
+}) {
+  const isSingleDevice = Boolean(deviceName);
+
   return (
     <div className="profile-modal" onMouseDown={onCancel} role="presentation">
       <section
@@ -545,9 +564,15 @@ function DeviceLogoutConfirm({ count, isPending, onCancel, onConfirm }) {
         role="dialog"
       >
         <div className="profile-modal__heading">
-          <h2 id="device-logout-confirm-title">Sign out other devices?</h2>
+          <h2 id="device-logout-confirm-title">
+            {isSingleDevice
+              ? `Sign out ${deviceName}?`
+              : "Sign out other devices?"}
+          </h2>
           <p>
-            {count === 1
+            {isSingleDevice
+              ? "This device will need a new verification code to sign in again."
+              : count === 1
               ? "The other device will need a new verification code to sign in again."
               : `All ${count} other devices will need a new verification code to sign in again.`}
           </p>

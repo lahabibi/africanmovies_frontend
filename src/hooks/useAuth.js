@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteProfileImage,
+  enrichCurrentDevice,
   getActiveDevices,
   getUserById,
   logout,
@@ -148,6 +149,19 @@ export function useActiveDevices() {
     queryFn: getActiveDevices,
     queryKey: authKeys.devices,
     staleTime: 30 * 1000,
+  });
+}
+
+export function useEnrichCurrentDevice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: enrichCurrentDevice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.devices });
+    },
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
   });
 }
 
