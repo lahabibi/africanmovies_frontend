@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import mailIcon from "../assets/icons/ic_mail.png";
 import mailOkIcon from "../assets/icons/ic_mail_ok.png";
 import securityIcon from "../assets/icons/ic_security.png";
@@ -8,7 +8,6 @@ import AuthStoryPanel from "../components/auth/AuthStoryPanel";
 import { useRequestOtp, useVerifyOtp } from "../hooks/useAuth";
 
 const OTP_LENGTH = 6;
-const DEFAULT_EMAIL = "john.doe@email.com";
 
 function formatCountdown(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -27,7 +26,7 @@ function OtpPage() {
   const [lastSubmittedCode, setLastSubmittedCode] = useState("");
   const requestOtpMutation = useRequestOtp();
   const verifyOtpMutation = useVerifyOtp();
-  const email = location.state?.email || DEFAULT_EMAIL;
+  const email = location.state?.email || "";
   const otpCode = digits.join("");
   const isCodeComplete = digits.every(Boolean);
 
@@ -185,6 +184,10 @@ function OtpPage() {
       },
     });
   };
+
+  if (!email) {
+    return <Navigate replace to="/signin" />;
+  }
 
   return (
     <main className="auth-page auth-page--otp">
