@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2 } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -51,9 +52,32 @@ function WatchFlowProvider({ children }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState(IDLE_FLOW);
+  const [notice, setNotice] = useState("");
   const requestIdRef = useRef(0);
   const handledPaymentRef = useRef(null);
   const paymentWindowRef = useRef(null);
+  const noticeTimerRef = useRef(null);
+
+  const showNotice = useCallback((message) => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+
+    setNotice(message);
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice("");
+      noticeTimerRef.current = null;
+    }, 3500);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const closeActivePaymentWindow = useCallback(() => {
     closePaymentWindow(paymentWindowRef.current);
@@ -187,6 +211,7 @@ function WatchFlowProvider({ children }) {
         transactionId,
         txRef,
       });
+      showNotice("Payment successful");
 
       const resolvedMovieId = completedPayment?.movieId || movieId;
       await Promise.all([
@@ -199,7 +224,7 @@ function WatchFlowProvider({ children }) {
       ]);
       await openPlayback(movie, resolvedMovieId, requestId);
     },
-    [openPlayback, queryClient],
+    [openPlayback, queryClient, showNotice],
   );
 
   const startVerifiedPaymentPlayback = useCallback(
@@ -278,6 +303,7 @@ function WatchFlowProvider({ children }) {
         transactionId: result.transactionId,
         txRef,
       };
+      showNotice("Payment successful");
 
       if (pendingPayment.method === "hosted_card" && result.transactionId) {
         setFlow({
@@ -292,7 +318,7 @@ function WatchFlowProvider({ children }) {
 
       await startVerifiedPaymentPlayback(completion);
     },
-    [closeActivePaymentWindow, startVerifiedPaymentPlayback],
+    [closeActivePaymentWindow, showNotice, startVerifiedPaymentPlayback],
   );
 
   useEffect(
@@ -677,6 +703,7 @@ function WatchFlowProvider({ children }) {
   const saveCardAndContinue = useCallback(async () => {
     const completion = flow.paymentCompletion;
     if (!completion?.transactionId) return;
+    const isReplacingCard = flow.phase === "replace-card";
 
     setFlow((current) => ({ ...current, phase: "saving-card", error: "" }));
 
@@ -685,6 +712,11 @@ function WatchFlowProvider({ children }) {
         isNewCard: true,
         transactionId: completion.transactionId,
       });
+      showNotice(
+        isReplacingCard
+          ? "Saved card updated successfully"
+          : "Card saved successfully",
+      );
       await startVerifiedPaymentPlayback(completion);
     } catch (error) {
       setFlow((current) => ({
@@ -695,7 +727,12 @@ function WatchFlowProvider({ children }) {
           "Your payment succeeded, but the card could not be saved.",
       }));
     }
-  }, [flow.paymentCompletion, startVerifiedPaymentPlayback]);
+  }, [
+    flow.paymentCompletion,
+    flow.phase,
+    showNotice,
+    startVerifiedPaymentPlayback,
+  ]);
 
   const retryFlow = useCallback(() => {
     const movie = flow.movie;
@@ -715,6 +752,12 @@ function WatchFlowProvider({ children }) {
   return (
     <WatchFlowContext.Provider value={value}>
       {children}
+      {notice ? (
+        <div aria-live="polite" className="watch-flow-toast" role="status">
+          <CheckCircle2 aria-hidden="true" size={20} strokeWidth={2.1} />
+          <span>{notice}</span>
+        </div>
+      ) : null}
       {flow.phase !== "idle" ? (
         <WatchFlowDialog
           flow={flow}

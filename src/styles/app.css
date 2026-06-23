@@ -1023,6 +1023,33 @@
   backdrop-filter: blur(14px);
 }
 
+.watch-flow-toast {
+  position: fixed;
+  top: 86px;
+  right: var(--page-padding);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.54);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: rgba(5, 17, 29, 0.96);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  font-size: 14px;
+  font-weight: 600;
+  animation: movieDetailToastIn 180ms ease-out;
+}
+
+.watch-flow-toast svg {
+  flex: 0 0 auto;
+  color: var(--color-blue);
+}
+
 .watch-flow-modal__dialog {
   position: relative;
   width: min(100%, 430px);

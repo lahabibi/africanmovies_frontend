@@ -12,6 +12,7 @@ import {
   getPaymentStatus,
   getSavedPaymentMethod,
   initializeInlinePayment,
+  savePaymentMethod,
   waitForPaymentCompletion,
   waitForPaymentVerification,
 } from "../api/paymentApi";
@@ -342,6 +343,7 @@ test("actively verifies a saved-card payment without a popup message", async () 
   );
 
   expect(await screen.findByText("Player route")).toBeInTheDocument();
+  expect(screen.getByText("Payment successful")).toBeInTheDocument();
   expect(waitForPaymentVerification).toHaveBeenCalledWith(
     {
       transactionId: "flw-polled-1",
@@ -414,6 +416,13 @@ test("verifies Inline payment before offering to save the new card", async () =>
     status: "successful",
     transactionId: "flw-inline-1",
   });
+  savePaymentMethod.mockResolvedValue({ status: "success" });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movie.id, title: movie.title },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
   renderFlow();
 
   fireEvent.click(screen.getByRole("button", { name: "Watch" }));
@@ -424,8 +433,71 @@ test("verifies Inline payment before offering to save the new card", async () =>
   expect(
     await screen.findByRole("heading", { name: "Save this card?" }),
   ).toBeInTheDocument();
+  expect(screen.getByText("Payment successful")).toBeInTheDocument();
   expect(waitForPaymentVerification).toHaveBeenCalledWith(
     { transactionId: "flw-inline-1", txRef: "tx-inline-1" },
     { attempts: 30, interval: 2000 },
   );
+
+  fireEvent.click(screen.getByRole("button", { name: "Save card" }));
+
+  expect(
+    await screen.findByText("Card saved successfully"),
+  ).toBeInTheDocument();
+  expect(savePaymentMethod).toHaveBeenCalledWith({
+    isNewCard: true,
+    transactionId: "flw-inline-1",
+  });
+});
+
+test("notifies when a saved card is replaced", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  getWatchAccess.mockResolvedValue({
+    action: "PURCHASE",
+    movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
+    reason: "PURCHASE_REQUIRED",
+  });
+  getSavedPaymentMethod.mockResolvedValue({
+    tokenPayload: { _id: "card-1", cardType: "visa", last4Digits: "4242" },
+  });
+  initializeInlinePayment.mockResolvedValue({
+    amount: 10.99,
+    currency: "USD",
+    customer: { email: "viewer@example.com", name: "Viewer" },
+    publicKey: "FLWPUBK_TEST-key-X",
+    txRef: "tx-replace-1",
+  });
+  openFlutterwaveInline.mockResolvedValue({
+    status: "successful",
+    transaction_id: "flw-replace-1",
+    tx_ref: "tx-replace-1",
+  });
+  waitForPaymentVerification.mockResolvedValue({
+    movieId: movie.id,
+    status: "successful",
+    transactionId: "flw-replace-1",
+  });
+  savePaymentMethod.mockResolvedValue({ status: "success" });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movie.id, title: movie.title },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+  renderFlow();
+
+  fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use another card" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Replace card" }),
+  );
+
+  expect(
+    await screen.findByText("Saved card updated successfully"),
+  ).toBeInTheDocument();
 });
