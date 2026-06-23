@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AllMovies from "./pages/AllMovies";
 import AuthPage from "./pages/AuthPage";
 import Genres from "./pages/Genres";
@@ -52,7 +52,10 @@ function App() {
           path="/watchlist"
           element={<SavedMovies collectionType="watchlist" />}
         />
-        <Route path="/devices" element={<PlaceholderPage title="Devices" />} />
+        <Route
+          path="/devices"
+          element={<Navigate replace to="/profile#active-devices" />}
+        />
         <Route
           path="/purchase-history"
           element={<PurchaseHistory />}

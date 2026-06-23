@@ -36,6 +36,10 @@ test("renders the shared account sidebar in the configured order", () => {
     "aria-current",
     "page",
   );
+  expect(screen.getByRole("link", { name: "Devices" })).toHaveAttribute(
+    "href",
+    "/profile#active-devices",
+  );
 });
 
 test("delegates logout to the shared app shell flow", () => {

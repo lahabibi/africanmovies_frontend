@@ -56,3 +56,21 @@ export function deleteProfileImage() {
     method: "DELETE",
   });
 }
+
+export function getActiveDevices() {
+  return apiClient("/auth/devices");
+}
+
+export function logoutDevice(sessionId) {
+  return apiClient(`/auth/devices/logout/${encodeURIComponent(sessionId)}`, {
+    body: {},
+    method: "POST",
+  });
+}
+
+export function logoutOtherDevices() {
+  return apiClient("/auth/devices/logout-others", {
+    body: {},
+    method: "POST",
+  });
+}

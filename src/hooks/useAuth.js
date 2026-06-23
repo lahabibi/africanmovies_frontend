@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteProfileImage,
+  getActiveDevices,
   getUserById,
   logout,
+  logoutDevice,
+  logoutOtherDevices,
   requestOtp,
   updateUsername,
   uploadProfileImage,
@@ -18,6 +21,7 @@ import {
 
 export const authKeys = {
   currentUser: ["auth", "currentUser"],
+  devices: ["auth", "devices"],
 };
 
 export function useCurrentUser() {
@@ -131,6 +135,45 @@ export function useDeleteProfileImage() {
           profileURL: data?.profileURL,
         },
         data?.token,
+      );
+    },
+  });
+}
+
+export function useActiveDevices() {
+  const token = getAuthToken();
+
+  return useQuery({
+    enabled: Boolean(token),
+    queryFn: getActiveDevices,
+    queryKey: authKeys.devices,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useLogoutDevice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: logoutDevice,
+    onSuccess: (_, sessionId) => {
+      queryClient.setQueryData(authKeys.devices, (devices = []) =>
+        devices.filter(
+          (device) => String(device._id || device.id) !== String(sessionId),
+        ),
+      );
+    },
+  });
+}
+
+export function useLogoutOtherDevices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: logoutOtherDevices,
+    onSuccess: () => {
+      queryClient.setQueryData(authKeys.devices, (devices = []) =>
+        devices.filter((device) => device.isCurrent),
       );
     },
   });

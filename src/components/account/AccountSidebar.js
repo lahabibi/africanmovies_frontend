@@ -31,7 +31,12 @@ const accountSidebarSections = [
         to: "/purchase-history",
         icon: ReceiptText,
       },
-      { id: "devices", label: "Devices", to: "/devices", icon: Monitor },
+      {
+        id: "devices",
+        label: "Devices",
+        to: "/profile#active-devices",
+        icon: Monitor,
+      },
       {
         id: "library",
         label: "My Library",
@@ -84,6 +89,19 @@ function AccountSidebar({ activeId, ariaLabel = "Account navigation" }) {
                   aria-current={link.id === activeId ? "page" : undefined}
                   className={link.id === activeId ? "is-active" : undefined}
                   key={link.id}
+                  onClick={
+                    link.id === "devices"
+                      ? () =>
+                          window.requestAnimationFrame(() => {
+                            document
+                              .getElementById("active-devices")
+                              ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                          })
+                      : undefined
+                  }
                   to={link.to}
                 >
                   <Icon aria-hidden="true" size={21} strokeWidth={1.8} />

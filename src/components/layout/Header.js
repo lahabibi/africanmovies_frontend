@@ -28,7 +28,7 @@ const authenticatedNavItems = [
 const profileMenuItems = [
   { label: "My Profile", to: "/profile", icon: UserRound },
   { label: "Payment Details", to: "/payment-details", icon: CreditCard },
-  { label: "Devices", to: "/devices", icon: Monitor },
+  { label: "Devices", to: "/profile#active-devices", icon: Monitor },
   {
     label: "Help & Support",
     to: "/support",

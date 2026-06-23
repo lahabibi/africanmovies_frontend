@@ -4843,6 +4843,7 @@
 
 .active-devices {
   padding: 22px 22px 20px;
+  scroll-margin-top: 96px;
 }
 
 .active-devices__header {
@@ -4852,6 +4853,31 @@
   gap: 14px;
   padding: 0 4px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.active-devices__header > button:disabled {
+  cursor: default;
+  opacity: 0.46;
+}
+
+.active-devices__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 92px;
+  color: var(--color-muted-strong);
+  font-size: 13px;
+}
+
+.active-devices__state button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(var(--color-blue-rgb), 0.42);
+  border-radius: var(--radius-sm);
+  color: var(--color-blue);
+  background: rgba(var(--color-blue-rgb), 0.08);
+  cursor: pointer;
 }
 
 .profile-panel-icon {
@@ -5107,6 +5133,13 @@
 }
 
 .profile-modal__actions button[type="submit"] {
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--color-blue), var(--color-blue-deep));
+  box-shadow: 0 14px 28px rgba(var(--color-blue-rgb), 0.26);
+  font-weight: 700;
+}
+
+.profile-modal__actions .profile-modal__primary {
   border-color: transparent;
   background: linear-gradient(180deg, var(--color-blue), var(--color-blue-deep));
   box-shadow: 0 14px 28px rgba(var(--color-blue-rgb), 0.26);

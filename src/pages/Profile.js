@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   AlertCircle,
   Camera,
@@ -17,14 +17,17 @@ import {
 } from "lucide-react";
 import AccountSidebar from "../components/account/AccountSidebar";
 import AppShell from "../components/layout/AppShell";
-import { activeDevices } from "../data/profileData";
 import Footer from "../components/layout/Footer";
 import {
+  useActiveDevices,
   useCurrentUser,
   useDeleteProfileImage,
+  useLogoutDevice,
+  useLogoutOtherDevices,
   useUpdateUsername,
   useUploadProfileImage,
 } from "../hooks/useAuth";
+import { mapDeviceSession } from "../utils/deviceMappers";
 
 const DEFAULT_PROFILE_URL =
   "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
@@ -35,6 +38,7 @@ const PROFILE_IMAGE_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
+const MAX_ACTIVE_DEVICES = 2;
 
 const deviceIcons = {
   laptop: Laptop,
@@ -43,6 +47,7 @@ const deviceIcons = {
 };
 
 function Profile() {
+  const location = useLocation();
   const [editingField, setEditingField] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimerRef = useRef(null);
@@ -51,6 +56,19 @@ function Profile() {
   const uploadProfileImageMutation = useUploadProfileImage();
   const deleteProfileImageMutation = useDeleteProfileImage();
   const user = currentUserQuery.data;
+
+  useEffect(() => {
+    if (location.hash !== "#active-devices") return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById("active-devices")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash]);
 
   useEffect(
     () => () => {
@@ -110,7 +128,10 @@ function Profile() {
   return (
     <AppShell>
       <main className="profile-page">
-        <AccountSidebar activeId="profile" ariaLabel="Profile settings" />
+        <AccountSidebar
+          activeId={location.hash === "#active-devices" ? "devices" : "profile"}
+          ariaLabel="Profile settings"
+        />
 
         <section className="profile-content" aria-labelledby="profile-title">
           {notice ? (
@@ -143,7 +164,7 @@ function Profile() {
                 onUploadProfileImage={handleUploadProfileImage}
                 user={user}
               />
-              <ActiveDevices />
+              <ActiveDevices onNotice={showNotice} />
             </div>
 
             <NeedHelpCard />
@@ -308,33 +329,106 @@ function ProfileInformation({
   );
 }
 
-function ActiveDevices() {
+function ActiveDevices({ onNotice }) {
+  const [isLogoutOthersConfirmOpen, setIsLogoutOthersConfirmOpen] =
+    useState(false);
+  const devicesQuery = useActiveDevices();
+  const logoutDeviceMutation = useLogoutDevice();
+  const logoutOtherDevicesMutation = useLogoutOtherDevices();
+  const devices = (devicesQuery.data || []).map((device) =>
+    mapDeviceSession(device),
+  );
+  const otherDeviceCount = devices.filter((device) => !device.isCurrent).length;
+
+  const handleLogoutDevice = async (device) => {
+    try {
+      await logoutDeviceMutation.mutateAsync(device.id);
+      onNotice(`${device.name} signed out`);
+    } catch (error) {
+      onNotice(error?.message || "Device could not be signed out.", "error");
+    }
+  };
+
+  const handleLogoutOtherDevices = async () => {
+    try {
+      const response = await logoutOtherDevicesMutation.mutateAsync();
+      setIsLogoutOthersConfirmOpen(false);
+      const count = Number(response?.revokedCount) || otherDeviceCount;
+      onNotice(
+        count === 1 ? "Other device signed out" : "Other devices signed out",
+      );
+    } catch (error) {
+      onNotice(
+        error?.message || "Other devices could not be signed out.",
+        "error",
+      );
+    }
+  };
+
   return (
     <section
       className="profile-panel active-devices"
       aria-labelledby="active-devices-title"
+      id="active-devices"
     >
       <header className="active-devices__header">
         <span className="profile-panel-icon">
           <Monitor aria-hidden="true" size={27} strokeWidth={1.8} />
         </span>
         <span>
-          <h2 id="active-devices-title">Active Devices</h2>
+          <h2 id="active-devices-title">
+            Active Devices ({devices.length}/{MAX_ACTIVE_DEVICES})
+          </h2>
           <p>Manage devices that are signed in to your account.</p>
         </span>
-        <button type="button">Sign out of all devices</button>
+        <button
+          disabled={!otherDeviceCount || devicesQuery.isLoading}
+          onClick={() => setIsLogoutOthersConfirmOpen(true)}
+          type="button"
+        >
+          Sign out other devices
+        </button>
       </header>
 
       <div className="active-device-list">
-        {activeDevices.map((device) => (
-          <DeviceRow device={device} key={device.id} />
-        ))}
+        {devicesQuery.isLoading ? (
+          <DeviceState message="Loading active devices..." />
+        ) : devicesQuery.isError ? (
+          <DeviceState
+            actionLabel="Try again"
+            message="Active devices could not be loaded."
+            onAction={() => devicesQuery.refetch()}
+          />
+        ) : devices.length ? (
+          devices.map((device) => (
+            <DeviceRow
+              device={device}
+              isLoggingOut={
+                logoutDeviceMutation.isPending &&
+                String(logoutDeviceMutation.variables) === device.id
+              }
+              key={device.id}
+              onLogout={handleLogoutDevice}
+            />
+          ))
+        ) : (
+          <DeviceState message="No active devices were found." />
+        )}
       </div>
+
+      {isLogoutOthersConfirmOpen ? (
+        <DeviceLogoutConfirm
+          count={otherDeviceCount}
+          isPending={logoutOtherDevicesMutation.isPending}
+          onCancel={() => setIsLogoutOthersConfirmOpen(false)}
+          onConfirm={handleLogoutOtherDevices}
+        />
+      ) : null}
     </section>
   );
 }
 
-function DeviceRow({ device }) {
+function DeviceRow({ device, isLoggingOut, onLogout }) {
   const Icon = deviceIcons[device.type] || Monitor;
   const menuRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -395,9 +489,17 @@ function DeviceRow({ device }) {
 
             {isMenuOpen ? (
               <div className="device-menu__popover" role="menu">
-                <button type="button" role="menuitem">
+                <button
+                  disabled={isLoggingOut}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onLogout(device);
+                  }}
+                  type="button"
+                  role="menuitem"
+                >
                   <LogOut aria-hidden="true" size={17} strokeWidth={1.9} />
-                  <span>Logout Device</span>
+                  <span>{isLoggingOut ? "Signing Out..." : "Logout Device"}</span>
                 </button>
               </div>
             ) : null}
@@ -405,6 +507,55 @@ function DeviceRow({ device }) {
         ) : null}
       </div>
     </article>
+  );
+}
+
+function DeviceState({ actionLabel, message, onAction }) {
+  return (
+    <div className="active-devices__state">
+      <span>{message}</span>
+      {onAction ? (
+        <button onClick={onAction} type="button">
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DeviceLogoutConfirm({ count, isPending, onCancel, onConfirm }) {
+  return (
+    <div className="profile-modal" onMouseDown={onCancel} role="presentation">
+      <section
+        aria-labelledby="device-logout-confirm-title"
+        aria-modal="true"
+        className="profile-modal__card"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="profile-modal__heading">
+          <h2 id="device-logout-confirm-title">Sign out other devices?</h2>
+          <p>
+            {count === 1
+              ? "The other device will need a new verification code to sign in again."
+              : `All ${count} other devices will need a new verification code to sign in again.`}
+          </p>
+        </div>
+        <div className="profile-modal__actions">
+          <button disabled={isPending} onClick={onCancel} type="button">
+            Cancel
+          </button>
+          <button
+            className="profile-modal__primary"
+            disabled={isPending}
+            onClick={onConfirm}
+            type="button"
+          >
+            {isPending ? "Signing Out..." : "Sign Out"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
