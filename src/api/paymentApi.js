@@ -31,10 +31,7 @@ export function initializeHostedPayment(movieId, idempotencyKey) {
 
 export function chargeSavedCard(movieId, idempotencyKey) {
   return apiClient("/payment/token-charge", {
-    body: {
-      movieId,
-      redirectUrl: `${window.location.origin}/process-token-payment`,
-    },
+    body: { movieId },
     headers: { "x-idempotency-key": idempotencyKey },
     method: "POST",
   });
