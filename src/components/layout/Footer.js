@@ -17,12 +17,22 @@ const footerColumns = [
   {
     title: "Support",
     links: ["Help Center", "Contact Us", "How It Works", "Device Support"],
-    to: ["help-center", "contact-us", "how-it-works", "device-support"],
+    to: [
+      "help-center",
+      "mailto:info@africanmovies.com",
+      "how-it-works",
+      "device-support",
+    ],
   },
   {
     title: "Company",
     links: ["About Us", "Careers", "Contact Us", "Projects"],
-    to: ["about-us", "careers", "contact-us", "projects"],
+    to: [
+      "about-us",
+      "careers",
+      "mailto:info@africanmovies.com",
+      "projects",
+    ],
   },
   {
     title: "Legal",
@@ -105,11 +115,19 @@ function Footer() {
           {footerColumns.map((column) => (
             <div className="site-footer__column" key={column.title}>
               <h2>{column.title}</h2>
-              {column.links.map((item, index) => (
-                <Link key={item} to={getFooterLinkTarget(column.to?.[index])}>
-                  {item}
-                </Link>
-              ))}
+              {column.links.map((item, index) => {
+                const target = getFooterLinkTarget(column.to?.[index]);
+
+                return target.startsWith("mailto:") ? (
+                  <a href={target} key={item}>
+                    {item}
+                  </a>
+                ) : (
+                  <Link key={item} to={target}>
+                    {item}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </nav>
@@ -214,7 +232,12 @@ function getFooterLinkTarget(to) {
     return "/";
   }
 
-  if (to === "/" || to.startsWith("/") || to.startsWith("http")) {
+  if (
+    to === "/" ||
+    to.startsWith("/") ||
+    to.startsWith("http") ||
+    to.startsWith("mailto:")
+  ) {
     return to;
   }
 

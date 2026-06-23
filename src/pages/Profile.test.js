@@ -166,6 +166,22 @@ test("uploads a selected profile picture", async () => {
   ).toBeInTheDocument();
 });
 
+test("shows a loader inside the avatar while a profile picture uploads", () => {
+  useUploadProfileImage.mockReturnValue({
+    isPending: true,
+    mutateAsync: uploadProfileImage,
+  });
+
+  renderProfile();
+
+  expect(
+    screen.getByRole("status", { name: "Uploading profile picture" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Change profile photo" }),
+  ).toBeDisabled();
+});
+
 test("removes the current profile picture", async () => {
   renderProfile();
 

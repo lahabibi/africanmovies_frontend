@@ -4674,6 +4674,22 @@
   box-shadow: 0 0 0 8px rgba(var(--color-blue-rgb), 0.16);
 }
 
+.profile-avatar-editor__loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-blue);
+  background: rgba(2, 8, 15, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.profile-avatar-editor__loader svg {
+  animation: watchFlowSpin 900ms linear infinite;
+}
+
 .profile-avatar-editor > button {
   position: absolute;
   right: -12px;

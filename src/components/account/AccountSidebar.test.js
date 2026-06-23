@@ -40,6 +40,10 @@ test("renders the shared account sidebar in the configured order", () => {
     "href",
     "/profile#active-devices",
   );
+  expect(screen.getByRole("link", { name: "Contact Us" })).toHaveAttribute(
+    "href",
+    "mailto:info@africanmovies.com",
+  );
 });
 
 test("delegates logout to the shared app shell flow", () => {

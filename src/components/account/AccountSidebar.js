@@ -65,7 +65,7 @@ const accountSidebarSections = [
       {
         id: "contact-us",
         label: "Contact Us",
-        to: "/contact-us",
+        to: "mailto:info@africanmovies.com",
         icon: MessageCircle,
       },
     ],
@@ -83,6 +83,16 @@ function AccountSidebar({ activeId, ariaLabel = "Account navigation" }) {
           <nav aria-label={section.title}>
             {section.links.map((link) => {
               const Icon = link.icon;
+              const isEmailLink = link.to.startsWith("mailto:");
+
+              if (isEmailLink) {
+                return (
+                  <a href={link.to} key={link.id}>
+                    <Icon aria-hidden="true" size={21} strokeWidth={1.8} />
+                    <span>{link.label}</span>
+                  </a>
+                );
+              }
 
               return (
                 <Link

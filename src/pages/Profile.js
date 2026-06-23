@@ -8,6 +8,7 @@ import {
   Headphones,
   ImagePlus,
   Laptop,
+  LoaderCircle,
   LogOut,
   Monitor,
   MoreVertical,
@@ -259,6 +260,16 @@ function ProfileInformation({
       <div className="profile-info-card__body">
         <div className="profile-avatar-editor" ref={avatarMenuRef}>
           <img src={avatar} alt={`${username} profile`} />
+          {isUploading ? (
+              <span
+                aria-label="Uploading profile picture"
+                aria-live="polite"
+                className="profile-avatar-editor__loader"
+                role="status"
+              >
+                <LoaderCircle aria-hidden="true" size={30} strokeWidth={2} />
+              </span>
+          ) : null}
           <input
             accept="image/avif,image/jpeg,image/png,image/webp"
             aria-label="Upload profile photo"
