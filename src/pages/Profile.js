@@ -13,6 +13,7 @@ import {
   Monitor,
   MoreVertical,
   Pencil,
+  RefreshCw,
   Smartphone,
   Trash2,
 } from "lucide-react";
@@ -57,6 +58,7 @@ function Profile() {
   const uploadProfileImageMutation = useUploadProfileImage();
   const deleteProfileImageMutation = useDeleteProfileImage();
   const user = currentUserQuery.data;
+  const isProfileLoading = !user && currentUserQuery.isLoading;
 
   useEffect(() => {
     if (location.hash !== "#active-devices") return undefined;
@@ -157,14 +159,22 @@ function Profile() {
 
           <div className="profile-layout">
             <div className="profile-main">
-              <ProfileInformation
-                isDeleting={deleteProfileImageMutation.isPending}
-                isUploading={uploadProfileImageMutation.isPending}
-                onDeleteProfileImage={handleDeleteProfileImage}
-                onEditField={setEditingField}
-                onUploadProfileImage={handleUploadProfileImage}
-                user={user}
-              />
+              {isProfileLoading ? (
+                <ProfileInformationLoading />
+              ) : user ? (
+                <ProfileInformation
+                  isDeleting={deleteProfileImageMutation.isPending}
+                  isUploading={uploadProfileImageMutation.isPending}
+                  onDeleteProfileImage={handleDeleteProfileImage}
+                  onEditField={setEditingField}
+                  onUploadProfileImage={handleUploadProfileImage}
+                  user={user}
+                />
+              ) : (
+                <ProfileInformationError
+                  onRetry={() => currentUserQuery.refetch()}
+                />
+              )}
               <ActiveDevices onNotice={showNotice} />
             </div>
 
@@ -181,6 +191,56 @@ function Profile() {
       ) : null}
       <Footer />
     </AppShell>
+  );
+}
+
+function ProfileInformationLoading() {
+  return (
+    <section
+      className="profile-panel profile-info-card"
+      aria-labelledby="profile-info-loading-title"
+    >
+      <h2 id="profile-info-loading-title">Profile Information</h2>
+      <div
+        aria-label="Loading profile information"
+        className="profile-info-loading"
+        role="status"
+      >
+        <span className="profile-info-loading__avatar" />
+        <div className="profile-info-loading__fields">
+          {Array.from({ length: 3 }, (_, index) => (
+            <span className="profile-info-loading__field" key={index}>
+              <i />
+              <i />
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProfileInformationError({ onRetry }) {
+  return (
+    <section
+      className="profile-panel profile-info-card"
+      aria-labelledby="profile-info-error-title"
+    >
+      <h2 id="profile-info-error-title">Profile Information</h2>
+      <div className="profile-info-error" role="alert">
+        <span aria-hidden="true">
+          <AlertCircle size={27} strokeWidth={1.8} />
+        </span>
+        <div>
+          <h3>Profile unavailable</h3>
+          <p>We couldn't load your profile information right now.</p>
+        </div>
+        <button onClick={onRetry} type="button">
+          <RefreshCw aria-hidden="true" size={16} strokeWidth={1.9} />
+          Try Again
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -261,14 +321,14 @@ function ProfileInformation({
         <div className="profile-avatar-editor" ref={avatarMenuRef}>
           <img src={avatar} alt={`${username} profile`} />
           {isUploading ? (
-              <span
-                aria-label="Uploading profile picture"
-                aria-live="polite"
-                className="profile-avatar-editor__loader"
-                role="status"
-              >
-                <LoaderCircle aria-hidden="true" size={30} strokeWidth={2} />
-              </span>
+            <span
+              aria-label="Uploading profile picture"
+              aria-live="polite"
+              className="profile-avatar-editor__loader"
+              role="status"
+            >
+              <LoaderCircle aria-hidden="true" size={30} strokeWidth={2} />
+            </span>
           ) : null}
           <input
             accept="image/avif,image/jpeg,image/png,image/webp"

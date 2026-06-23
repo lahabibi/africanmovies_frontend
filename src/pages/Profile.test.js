@@ -32,6 +32,7 @@ const uploadProfileImage = jest.fn();
 const deleteProfileImage = jest.fn();
 const logoutDevice = jest.fn();
 const logoutOtherDevices = jest.fn();
+const refetchCurrentUser = jest.fn();
 
 function renderProfile() {
   return render(
@@ -52,6 +53,9 @@ beforeEach(() => {
       profileURL: "https://example.com/profile.jpg",
       username: "Current User",
     },
+    isError: false,
+    isLoading: false,
+    refetch: refetchCurrentUser,
   });
   useUpdateUsername.mockReturnValue({
     isPending: false,
@@ -127,6 +131,55 @@ test("shows only editable username with read-only email and English", () => {
   expect(
     screen.queryByRole("button", { name: "Change preferred language" }),
   ).not.toBeInTheDocument();
+});
+
+test("shows a stable profile skeleton while uncached user data loads", () => {
+  useCurrentUser.mockReturnValue({
+    data: null,
+    isError: false,
+    isLoading: true,
+    refetch: refetchCurrentUser,
+  });
+
+  renderProfile();
+
+  expect(
+    screen.getByRole("status", { name: "Loading profile information" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Profile unavailable")).not.toBeInTheDocument();
+});
+
+test("shows a retry action when uncached profile data cannot load", () => {
+  useCurrentUser.mockReturnValue({
+    data: null,
+    isError: true,
+    isLoading: false,
+    refetch: refetchCurrentUser,
+  });
+
+  renderProfile();
+  fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
+
+  expect(screen.getByText("Profile unavailable")).toBeInTheDocument();
+  expect(refetchCurrentUser).toHaveBeenCalledTimes(1);
+});
+
+test("keeps cached profile data visible when a background refresh fails", () => {
+  useCurrentUser.mockReturnValue({
+    data: {
+      _id: "user-1",
+      email: "viewer@example.com",
+      username: "Cached User",
+    },
+    isError: true,
+    isLoading: false,
+    refetch: refetchCurrentUser,
+  });
+
+  renderProfile();
+
+  expect(screen.getByText("Cached User")).toBeInTheDocument();
+  expect(screen.queryByText("Profile unavailable")).not.toBeInTheDocument();
 });
 
 test("updates the username when Save Changes is clicked", async () => {
