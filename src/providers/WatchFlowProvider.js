@@ -3,6 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -24,9 +25,15 @@ import {
 import WatchFlowDialog from "../components/watch/WatchFlowDialog";
 import { getWatchAccessQueryKey } from "../hooks/useWatchAccess";
 import {
+  clearPaymentResult,
+  clearPendingPayment,
+  closePaymentWindow,
   createPaymentIdempotencyKey,
+  getPendingPayment,
+  openPaymentWindow,
   redirectToExternalCheckout,
   savePendingPayment,
+  subscribeToPaymentResults,
 } from "../utils/pendingPayment";
 
 const WatchFlowContext = createContext(null);
@@ -38,6 +45,25 @@ function WatchFlowProvider({ children }) {
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState(IDLE_FLOW);
   const requestIdRef = useRef(0);
+  const handledPaymentRef = useRef(null);
+  const paymentWindowRef = useRef(null);
+
+  const closeActivePaymentWindow = useCallback(() => {
+    closePaymentWindow(paymentWindowRef.current);
+    paymentWindowRef.current = null;
+  }, []);
+
+  const preparePaymentWindow = useCallback(() => {
+    clearPaymentResult();
+    handledPaymentRef.current = null;
+    const paymentWindow = openPaymentWindow();
+
+    if (paymentWindow) {
+      paymentWindowRef.current = paymentWindow;
+    }
+
+    return paymentWindow;
+  }, []);
 
   const redirectToSignIn = useCallback(
     (movie, intent) => {
@@ -179,33 +205,126 @@ function WatchFlowProvider({ children }) {
     [openPlayback, queryClient],
   );
 
+  const handlePaymentWindowResult = useCallback(
+    async (result) => {
+      const pendingPayment = getPendingPayment();
+      const txRef = result?.txRef;
+
+      if (!txRef || pendingPayment?.txRef !== txRef) return;
+      if (handledPaymentRef.current === txRef) return;
+      handledPaymentRef.current = txRef;
+
+      closeActivePaymentWindow();
+      clearPaymentResult();
+      clearPendingPayment();
+
+      if (result.status !== "successful") {
+        setFlow({
+          phase: "error",
+          movie: {
+            id: pendingPayment.movieId,
+            slug: pendingPayment.movieId,
+            title: pendingPayment.movieTitle,
+          },
+          decision: null,
+          error:
+            result.status === "cancelled"
+              ? "Payment was cancelled. No charge was completed."
+              : result.message || "Payment could not be completed.",
+        });
+        return;
+      }
+
+      const movieId = result.movieId || pendingPayment.movieId;
+      const movie = {
+        id: movieId,
+        slug: movieId,
+        title: pendingPayment.movieTitle,
+      };
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["payments"] }),
+          queryClient.invalidateQueries({ queryKey: ["catalog", "home"] }),
+          queryClient.invalidateQueries({
+            queryKey: getWatchAccessQueryKey(movieId),
+          }),
+        ]);
+        await openPlayback(movie, movieId, requestId);
+      } catch (error) {
+        if (requestIdRef.current !== requestId) return;
+
+        setFlow({
+          phase: "error",
+          movie,
+          decision: null,
+          error:
+            error?.message ||
+            "Payment succeeded, but playback could not be started.",
+        });
+      }
+    },
+    [closeActivePaymentWindow, openPlayback, queryClient],
+  );
+
+  useEffect(
+    () => subscribeToPaymentResults(handlePaymentWindowResult),
+    [handlePaymentWindowResult],
+  );
+
   const redirectToCheckout = useCallback(
-    ({ decision, hadSavedCard, method, movie, result }) => {
+    ({ decision, hadSavedCard, method, movie, paymentWindow, result }) => {
       const checkoutUrl = result.checkoutUrl || result.redirectUrl || result.url;
 
       if (!checkoutUrl) {
         throw new Error("Payment checkout is unavailable.");
       }
 
-      savePendingPayment({
+      const pendingPayment = {
         hadSavedCard: Boolean(hadSavedCard),
         method,
         movieId: getMovieId(movie),
         movieTitle: movie?.title || decision?.movie?.title,
+        openedInPopup: true,
         returnPath: getPlaybackReturnPath(
           location.pathname,
           location.search,
         ),
         txRef: result.txRef,
-      });
-      redirectToExternalCheckout(checkoutUrl);
+      };
+      if (
+        !savePendingPayment(pendingPayment) ||
+        !savePendingPayment(pendingPayment, paymentWindow)
+      ) {
+        throw new Error("The secure payment window could not be prepared.");
+      }
+      redirectToExternalCheckout(checkoutUrl, paymentWindow);
     },
     [location.pathname, location.search],
   );
 
   const startHostedPayment = useCallback(
-    async (movie, decision, { hadSavedCard = false } = {}) => {
+    async (
+      movie,
+      decision,
+      { hadSavedCard = false, paymentWindow: existingWindow = null } = {},
+    ) => {
       const movieId = getMovieId(movie);
+      const paymentWindow = existingWindow || preparePaymentWindow();
+
+      if (!paymentWindow) {
+        setFlow({
+          phase: "error",
+          movie,
+          decision,
+          error: "Allow payment popups in your browser and try again.",
+        });
+        return;
+      }
+
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
       setFlow((current) => ({ ...current, phase: "payment-processing" }));
@@ -215,15 +334,20 @@ function WatchFlowProvider({ children }) {
           movieId,
           createPaymentIdempotencyKey(movieId, "hosted"),
         );
-        if (requestIdRef.current !== requestId) return;
+        if (requestIdRef.current !== requestId) {
+          closePaymentWindow(paymentWindow);
+          return;
+        }
         redirectToCheckout({
           decision,
           hadSavedCard,
           method: "hosted_card",
           movie,
+          paymentWindow,
           result,
         });
       } catch (error) {
+        closePaymentWindow(paymentWindow);
         if (requestIdRef.current !== requestId) return;
 
         if (error?.data?.code === "ACTIVE_ACCESS") {
@@ -239,21 +363,38 @@ function WatchFlowProvider({ children }) {
         });
       }
     },
-    [openPlayback, redirectToCheckout],
+    [openPlayback, preparePaymentWindow, redirectToCheckout],
   );
 
   const beginPurchase = useCallback(async () => {
     const movie = flow.movie;
     const decision = flow.decision;
+    const paymentWindow = preparePaymentWindow();
+
+    if (!paymentWindow) {
+      setFlow({
+        phase: "error",
+        movie,
+        decision,
+        error: "Allow payment popups in your browser and try again.",
+      });
+      return;
+    }
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setFlow((current) => ({ ...current, phase: "payment-loading" }));
 
     try {
       const response = await getSavedPaymentMethod();
-      if (requestIdRef.current !== requestId) return;
+      if (requestIdRef.current !== requestId) {
+        closePaymentWindow(paymentWindow);
+        return;
+      }
 
       if (response?.tokenPayload?._id) {
+        closePaymentWindow(paymentWindow);
+        paymentWindowRef.current = null;
         setFlow((current) => ({
           ...current,
           phase: "payment-choice",
@@ -262,8 +403,13 @@ function WatchFlowProvider({ children }) {
         return;
       }
 
-      await startHostedPayment(movie, decision, { hadSavedCard: false });
+      await startHostedPayment(movie, decision, {
+        hadSavedCard: false,
+        paymentWindow,
+      });
     } catch (error) {
+      closePaymentWindow(paymentWindow);
+      paymentWindowRef.current = null;
       if (requestIdRef.current !== requestId) return;
 
       setFlow({
@@ -273,12 +419,24 @@ function WatchFlowProvider({ children }) {
         error: error?.message || "We could not load your payment options.",
       });
     }
-  }, [flow.decision, flow.movie, startHostedPayment]);
+  }, [flow.decision, flow.movie, preparePaymentWindow, startHostedPayment]);
 
   const payWithSavedCard = useCallback(async () => {
     const movie = flow.movie;
     const decision = flow.decision;
     const movieId = getMovieId(movie);
+    const paymentWindow = preparePaymentWindow();
+
+    if (!paymentWindow) {
+      setFlow({
+        phase: "error",
+        movie,
+        decision,
+        error: "Allow payment popups in your browser and try again.",
+      });
+      return;
+    }
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setFlow((current) => ({ ...current, phase: "payment-processing" }));
@@ -288,7 +446,10 @@ function WatchFlowProvider({ children }) {
         movieId,
         createPaymentIdempotencyKey(movieId, "saved"),
       );
-      if (requestIdRef.current !== requestId) return;
+      if (requestIdRef.current !== requestId) {
+        closePaymentWindow(paymentWindow);
+        return;
+      }
 
       if (result.code === "AUTHORIZATION_REQUIRED") {
         redirectToCheckout({
@@ -296,12 +457,15 @@ function WatchFlowProvider({ children }) {
           hadSavedCard: true,
           method: "saved_card",
           movie,
+          paymentWindow,
           result,
         });
         return;
       }
 
       if (result.transactionId && result.txRef) {
+        closePaymentWindow(paymentWindow);
+        paymentWindowRef.current = null;
         await completePaymentAndPlay({
           movie,
           movieId,
@@ -314,15 +478,24 @@ function WatchFlowProvider({ children }) {
 
       throw new Error("Saved-card payment is still processing.");
     } catch (error) {
-      if (requestIdRef.current !== requestId) return;
+      if (requestIdRef.current !== requestId) {
+        closePaymentWindow(paymentWindow);
+        return;
+      }
 
       if (
         error?.data?.code === "NO_SAVED_CARD" ||
         error?.data?.code === "SAVED_CARD_EXPIRED"
       ) {
-        await startHostedPayment(movie, decision, { hadSavedCard: true });
+        await startHostedPayment(movie, decision, {
+          hadSavedCard: true,
+          paymentWindow,
+        });
         return;
       }
+
+      closePaymentWindow(paymentWindow);
+      paymentWindowRef.current = null;
 
       setFlow({
         phase: "error",
@@ -335,6 +508,7 @@ function WatchFlowProvider({ children }) {
     completePaymentAndPlay,
     flow.decision,
     flow.movie,
+    preparePaymentWindow,
     redirectToCheckout,
     startHostedPayment,
   ]);
@@ -389,8 +563,9 @@ function WatchFlowProvider({ children }) {
 
   const closeFlow = useCallback(() => {
     requestIdRef.current += 1;
+    closeActivePaymentWindow();
     setFlow(IDLE_FLOW);
-  }, []);
+  }, [closeActivePaymentWindow]);
 
   const retryFlow = useCallback(() => {
     const movie = flow.movie;

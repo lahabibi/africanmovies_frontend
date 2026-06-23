@@ -9,6 +9,7 @@ import MovieDetails from "./pages/MovieDetails";
 import OtpPage from "./pages/OtpPage";
 import PaymentDetails from "./pages/PaymentDetails";
 import PaymentCallback from "./pages/PaymentCallback";
+import PaymentProcessing from "./pages/PaymentProcessing";
 import Playback from "./pages/Playback";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Profile from "./pages/Profile";
@@ -42,6 +43,7 @@ function App() {
         />
         <Route path="/process-payment" element={<PaymentCallback />} />
         <Route path="/process-token-payment" element={<PaymentCallback />} />
+        <Route path="/payment-processing" element={<PaymentProcessing />} />
         <Route
           path="/favorites"
           element={<SavedMovies collectionType="favorites" />}

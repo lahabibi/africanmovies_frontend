@@ -21,7 +21,10 @@ import {
 import { createPlaybackSession } from "../api/watchApi";
 import {
   clearPendingPayment,
+  closePaymentWindow,
   getPendingPayment,
+  isPaymentWindow,
+  publishPaymentResult,
 } from "../utils/pendingPayment";
 
 function PaymentCallback() {
@@ -32,6 +35,9 @@ function PaymentCallback() {
   const completionRef = useRef(null);
   const cardPromptRef = useRef("save-card");
   const pendingPaymentRef = useRef(getPendingPayment());
+  const isPopupRef = useRef(
+    isPaymentWindow() || pendingPaymentRef.current?.openedInPopup === true,
+  );
   const [retryCount, setRetryCount] = useState(0);
   const [state, setState] = useState({
     phase: "verifying",
@@ -50,10 +56,24 @@ function PaymentCallback() {
 
       setState({
         phase: "success",
-        message: "Payment confirmed. Starting your movie.",
+        message: isPopupRef.current
+          ? "Payment confirmed. Returning to your movie."
+          : "Payment confirmed. Starting your movie.",
       });
 
       try {
+        if (isPopupRef.current) {
+          publishPaymentResult({
+            movieId: completion.movieId,
+            movieTitle: completion.pendingPayment?.movieTitle,
+            status: "successful",
+            txRef: completion.txRef || completion.pendingPayment?.txRef,
+          });
+          clearPendingPayment();
+          window.setTimeout(() => closePaymentWindow(window), 250);
+          return;
+        }
+
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["orders"] }),
           queryClient.invalidateQueries({ queryKey: ["payments"] }),
@@ -120,6 +140,7 @@ function PaymentCallback() {
           pendingPayment,
           transactionId:
             closedAttempt.transactionId || transactionId,
+          txRef,
         };
         completionRef.current = completion;
         await continueToPlayback(completion);
@@ -138,6 +159,18 @@ function PaymentCallback() {
           ? "No charge was completed. You can return and try again."
           : "The payment did not go through. You can return and try again.",
       });
+
+      if (isPopupRef.current) {
+        publishPaymentResult({
+          message: wasCancelled
+            ? "Payment was cancelled."
+            : "Payment did not go through.",
+          status: wasCancelled ? "cancelled" : "failed",
+          txRef: txRef || pendingPayment?.txRef,
+        });
+        clearPendingPayment();
+        window.setTimeout(() => closePaymentWindow(window), 700);
+      }
       return;
     }
 
@@ -182,6 +215,7 @@ function PaymentCallback() {
         movieId,
         pendingPayment,
         transactionId,
+        txRef,
       };
       completionRef.current = completion;
 
@@ -260,6 +294,19 @@ function PaymentCallback() {
 
   const pendingPayment = pendingPaymentRef.current;
   const returnPath = pendingPayment?.returnPath || "/";
+  const exitPayment = () => {
+    if (isPopupRef.current) {
+      publishPaymentResult({
+        message: state.message,
+        status: state.phase === "cancelled" ? "cancelled" : "failed",
+        txRef: pendingPayment?.txRef,
+      });
+      closePaymentWindow(window);
+      return;
+    }
+
+    navigate(returnPath);
+  };
   const isLoading = ["verifying", "success", "saving-card"].includes(
     state.phase,
   );
@@ -326,9 +373,9 @@ function PaymentCallback() {
 
         {!isLoading && !isCardPrompt && state.phase !== "card-save-error" ? (
           <div className="payment-return__actions">
-            <button onClick={() => navigate(returnPath)} type="button">
+            <button onClick={exitPayment} type="button">
               <ArrowLeft aria-hidden="true" size={18} />
-              Back to movie
+              {isPopupRef.current ? "Close window" : "Back to movie"}
             </button>
             {state.phase === "error" ? (
               <button className="is-primary" onClick={retry} type="button">

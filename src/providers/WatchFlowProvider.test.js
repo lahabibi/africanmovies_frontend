@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getAuthToken } from "../api/authToken";
 import {
@@ -11,7 +11,12 @@ import {
   getSavedPaymentMethod,
   initializeHostedPayment,
 } from "../api/paymentApi";
-import { redirectToExternalCheckout } from "../utils/pendingPayment";
+import {
+  closePaymentWindow,
+  openPaymentWindow,
+  redirectToExternalCheckout,
+  subscribeToPaymentResults,
+} from "../utils/pendingPayment";
 import WatchFlowProvider, { useWatchFlow } from "./WatchFlowProvider";
 
 jest.mock("../api/authToken", () => ({
@@ -35,7 +40,10 @@ jest.mock("../api/paymentApi", () => ({
 
 jest.mock("../utils/pendingPayment", () => ({
   ...jest.requireActual("../utils/pendingPayment"),
+  closePaymentWindow: jest.fn(),
+  openPaymentWindow: jest.fn(),
   redirectToExternalCheckout: jest.fn(),
+  subscribeToPaymentResults: jest.fn(),
 }));
 
 const movie = {
@@ -43,6 +51,14 @@ const movie = {
   slug: "6a1e54e7be4244a731af7b07",
   title: "The Story",
 };
+const paymentWindow = {
+  closed: false,
+  close: jest.fn(),
+  focus: jest.fn(),
+  location: {},
+  sessionStorage: window.sessionStorage,
+};
+let paymentResultHandler;
 
 function WatchTrigger() {
   const { startWatch } = useWatchFlow();
@@ -76,8 +92,19 @@ function renderFlow() {
   );
 }
 
+beforeEach(() => {
+  paymentWindow.closed = false;
+  openPaymentWindow.mockReturnValue(paymentWindow);
+  subscribeToPaymentResults.mockImplementation((handler) => {
+    paymentResultHandler = handler;
+    return jest.fn();
+  });
+});
+
 afterEach(() => {
   jest.clearAllMocks();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 test("redirects signed-out viewers to authentication", () => {
@@ -194,7 +221,52 @@ test("starts hosted checkout when the user has no saved card", async () => {
       expect.stringContaining(`web-hosted-${movie.id}-`),
     );
   });
+  expect(openPaymentWindow).toHaveBeenCalled();
   expect(redirectToExternalCheckout).toHaveBeenCalledWith(
     "https://checkout.flutterwave.com/test",
+    paymentWindow,
   );
+});
+
+test("starts playback in the main window after popup verification", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  getWatchAccess.mockResolvedValue({
+    action: "PURCHASE",
+    movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
+    reason: "PURCHASE_REQUIRED",
+  });
+  getSavedPaymentMethod.mockResolvedValue({ tokenPayload: null });
+  initializeHostedPayment.mockResolvedValue({
+    checkoutUrl: "https://checkout.flutterwave.com/test",
+    code: "CHECKOUT_READY",
+    txRef: "tx-popup-1",
+  });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movie.id, title: movie.title },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+  renderFlow();
+
+  fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+  await waitFor(() =>
+    expect(redirectToExternalCheckout).toHaveBeenCalled(),
+  );
+
+  await act(async () => {
+    await paymentResultHandler({
+      movieId: movie.id,
+      source: "africanmovies-payment",
+      status: "successful",
+      txRef: "tx-popup-1",
+    });
+  });
+
+  expect(await screen.findByText("Player route")).toBeInTheDocument();
+  expect(closePaymentWindow).toHaveBeenCalledWith(paymentWindow);
+  expect(createPlaybackSession).toHaveBeenCalledWith(movie.id);
 });

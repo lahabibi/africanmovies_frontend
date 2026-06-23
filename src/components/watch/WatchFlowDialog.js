@@ -27,8 +27,8 @@ const loadingCopy = {
     message: "Checking your saved payment method.",
   },
   "payment-processing": {
-    title: "Preparing payment",
-    message: "Connecting securely to Flutterwave.",
+    title: "Payment window open",
+    message: "Complete your secure payment in the separate window.",
   },
 };
 
@@ -97,11 +97,20 @@ function WatchFlowDialog({
         ) : null}
 
         {loadingState ? (
-          <WatchDialogBody
-            icon={<LoaderCircle className="watch-flow-modal__spinner" />}
-            message={loadingState.message}
-            title={loadingState.title}
-          />
+          <>
+            <WatchDialogBody
+              icon={<LoaderCircle className="watch-flow-modal__spinner" />}
+              message={loadingState.message}
+              title={loadingState.title}
+            />
+            {flow.phase === "payment-processing" ? (
+              <div className="watch-flow-modal__actions watch-flow-modal__actions--single">
+                <button onClick={onClose} type="button">
+                  Cancel payment
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         {flow.phase === "claim" ? (

@@ -4,8 +4,10 @@ import {
   CircleHelp,
   CreditCard,
   LogOut,
+  Menu,
   Monitor,
   UserRound,
+  X,
 } from "lucide-react";
 import logo from "../../assets/images/img_logo.png";
 import defaultAvatar from "../../assets/images/img_profile.png";
@@ -38,6 +40,7 @@ const profileMenuItems = [
 function Header({ currentUser, onLogoutRequest }) {
   const location = useLocation();
   const profileMenuRef = useRef(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isAuthenticated = Boolean(currentUser);
   const visibleNavItems = isAuthenticated ? authenticatedNavItems : navItems;
@@ -57,8 +60,27 @@ function Header({ currentUser, onLogoutRequest }) {
   };
 
   useEffect(() => {
+    setIsMobileMenuOpen(false);
     setIsProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) {
@@ -118,6 +140,23 @@ function Header({ currentUser, onLogoutRequest }) {
             icon={searchIcon}
             to="/search"
           />
+          <button
+            aria-controls="mobile-primary-navigation"
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
+            className="app-header__menu-button icon-button"
+            onClick={() => {
+              setIsProfileMenuOpen(false);
+              setIsMobileMenuOpen((isOpen) => !isOpen);
+            }}
+            type="button"
+          >
+            {isMobileMenuOpen ? (
+              <X aria-hidden="true" size={22} />
+            ) : (
+              <Menu aria-hidden="true" size={23} />
+            )}
+          </button>
           {isAuthenticated ? (
             <div className="profile-menu" ref={profileMenuRef}>
               <button
@@ -125,7 +164,10 @@ function Header({ currentUser, onLogoutRequest }) {
                 type="button"
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
-                onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsProfileMenuOpen((isOpen) => !isOpen);
+                }}
               >
                 <img src={userAvatar} alt="" aria-hidden="true" />
                 <span>{userName}</span>
@@ -183,11 +225,40 @@ function Header({ currentUser, onLogoutRequest }) {
             </div>
           ) : (
             <Link className="sign-in-button" to="/signin">
-              GET STARTED
+              <span className="sign-in-button__desktop-label">GET STARTED</span>
+              <span className="sign-in-button__mobile-label">SIGN IN</span>
             </Link>
           )}
         </div>
       </div>
+
+      {isMobileMenuOpen ? (
+        <>
+          <nav
+            aria-label="Mobile primary navigation"
+            className="app-header__mobile-nav"
+            id="mobile-primary-navigation"
+          >
+            {visibleNavItems.map((item) => (
+              <NavLink
+                className={({ isActive }) =>
+                  isNavItemActive(item.to, isActive) ? "is-active" : undefined
+                }
+                key={item.to}
+                to={item.to}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <button
+            aria-label="Close navigation"
+            className="app-header__mobile-backdrop"
+            onClick={() => setIsMobileMenuOpen(false)}
+            type="button"
+          />
+        </>
+      ) : null}
 
     </header>
   );

@@ -8,7 +8,11 @@ import {
   savePaymentMethod,
 } from "../api/paymentApi";
 import { createPlaybackSession } from "../api/watchApi";
-import { savePendingPayment } from "../utils/pendingPayment";
+import {
+  isPaymentWindow,
+  publishPaymentResult,
+  savePendingPayment,
+} from "../utils/pendingPayment";
 import PaymentCallback from "./PaymentCallback";
 
 jest.mock("../api/authToken", () => ({
@@ -25,6 +29,13 @@ jest.mock("../api/paymentApi", () => ({
 
 jest.mock("../api/watchApi", () => ({
   createPlaybackSession: jest.fn(),
+}));
+
+jest.mock("../utils/pendingPayment", () => ({
+  ...jest.requireActual("../utils/pendingPayment"),
+  closePaymentWindow: jest.fn(),
+  isPaymentWindow: jest.fn(),
+  publishPaymentResult: jest.fn(),
 }));
 
 const movieId = "6a1e54e7be4244a731af7b07";
@@ -49,8 +60,13 @@ function renderCallback(entry) {
   );
 }
 
+beforeEach(() => {
+  isPaymentWindow.mockReturnValue(false);
+});
+
 afterEach(() => {
   jest.clearAllMocks();
+  window.localStorage.clear();
   window.sessionStorage.clear();
 });
 
@@ -168,4 +184,29 @@ test("offers to replace an existing card after using another card", async () => 
 
   expect(await screen.findByText("Playback opened")).toBeInTheDocument();
   expect(savePaymentMethod).not.toHaveBeenCalled();
+});
+
+test("returns verified popup payment to the main window", async () => {
+  isPaymentWindow.mockReturnValue(true);
+  getAuthToken.mockReturnValue("test-token");
+  savePendingPayment({
+    method: "saved_card",
+    movieId,
+    movieTitle: "The Story",
+    returnPath: `/movies/${movieId}`,
+    txRef: "tx-popup-1",
+  });
+  confirmPayment.mockResolvedValue({ movieId, status: "successful" });
+  renderCallback(
+    "/process-payment?status=successful&transaction_id=flw-1&tx_ref=tx-popup-1",
+  );
+
+  expect(await screen.findByText("Payment confirmed. Returning to your movie.")).toBeInTheDocument();
+  expect(publishPaymentResult).toHaveBeenCalledWith({
+    movieId,
+    movieTitle: "The Story",
+    status: "successful",
+    txRef: "tx-popup-1",
+  });
+  expect(createPlaybackSession).not.toHaveBeenCalled();
 });
