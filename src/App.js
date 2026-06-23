@@ -40,10 +40,6 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/library" element={<Library />} />
             <Route path="/profile" element={<Profile />} />
-            <Route
-              path="/account-settings"
-              element={<PlaceholderPage title="Account Settings" />}
-            />
             <Route path="/payment-details" element={<PaymentDetails />} />
             <Route
               path="/favorites"
@@ -58,18 +54,6 @@ function App() {
               element={<Navigate replace to="/profile#active-devices" />}
             />
             <Route path="/purchase-history" element={<PurchaseHistory />} />
-            <Route
-              path="/parental-controls"
-              element={<PlaceholderPage title="Parental Controls" />}
-            />
-            <Route
-              path="/subtitles-audio"
-              element={<PlaceholderPage title="Subtitles & Audio" />}
-            />
-            <Route
-              path="/notifications"
-              element={<PlaceholderPage title="Notifications" />}
-            />
           </Route>
 
           <Route path="/process-payment" element={<PaymentCallback />} />
@@ -85,10 +69,6 @@ function App() {
           <Route
             path="/support"
             element={<PlaceholderPage title="Help & Support" />}
-          />
-          <Route
-            path="/contact-us"
-            element={<PlaceholderPage title="Contact Us" />}
           />
           <Route path="/search" element={<Search />} />
           <Route path="/signin" element={<AuthPage />} />

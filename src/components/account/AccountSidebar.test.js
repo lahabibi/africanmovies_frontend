@@ -59,3 +59,32 @@ test("delegates logout to the shared app shell flow", () => {
 
   expect(mockRequestLogout).toHaveBeenCalledTimes(1);
 });
+
+test("opens and closes the compact account menu", () => {
+  render(
+    <MemoryRouter
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <AccountSidebar activeId="payment-details" />
+    </MemoryRouter>,
+  );
+
+  const menuButton = screen.getByRole("button", {
+    name: "Open account menu",
+  });
+
+  expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  expect(menuButton).toHaveTextContent("Payment Details");
+
+  fireEvent.click(menuButton);
+
+  expect(
+    screen.getByRole("button", { name: "Close account menu" }),
+  ).toHaveAttribute("aria-expanded", "true");
+
+  fireEvent.keyDown(document, { key: "Escape" });
+
+  expect(
+    screen.getByRole("button", { name: "Open account menu" }),
+  ).toHaveAttribute("aria-expanded", "false");
+});
