@@ -29,6 +29,14 @@ export function initializeHostedPayment(movieId, idempotencyKey) {
   });
 }
 
+export function initializeInlinePayment(movieId, idempotencyKey) {
+  return apiClient("/payment/initialize-inline", {
+    body: { movieId },
+    headers: { "x-idempotency-key": idempotencyKey },
+    method: "POST",
+  });
+}
+
 export function chargeSavedCard(movieId, idempotencyKey) {
   return apiClient("/payment/token-charge", {
     body: { movieId },
@@ -68,6 +76,27 @@ export async function waitForPaymentCompletion(
     }
 
     await new Promise((resolve) => window.setTimeout(resolve, interval));
+  }
+
+  throw new Error("Payment confirmation is taking longer than expected.");
+}
+
+export async function waitForPaymentVerification(
+  { transactionId, txRef },
+  { attempts = 30, interval = 2000 } = {},
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await confirmPayment({ transactionId, txRef });
+    } catch (error) {
+      const retryable = [
+        "PAYMENT_NOT_VERIFIED",
+        "PAYMENT_PROVIDER_UNAVAILABLE",
+      ].includes(error?.data?.code);
+
+      if (!retryable || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, interval));
+    }
   }
 
   throw new Error("Payment confirmation is taking longer than expected.");

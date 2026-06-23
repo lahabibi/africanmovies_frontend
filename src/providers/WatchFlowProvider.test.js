@@ -8,13 +8,19 @@ import {
   getWatchAccess,
 } from "../api/watchApi";
 import {
+  chargeSavedCard,
+  getPaymentStatus,
   getSavedPaymentMethod,
-  initializeHostedPayment,
+  initializeInlinePayment,
+  waitForPaymentCompletion,
+  waitForPaymentVerification,
 } from "../api/paymentApi";
+import { openFlutterwaveInline } from "../utils/flutterwaveInline";
 import {
   closePaymentWindow,
   openPaymentWindow,
   redirectToExternalCheckout,
+  savePendingPayment,
   subscribeToPaymentResults,
 } from "../utils/pendingPayment";
 import WatchFlowProvider, { useWatchFlow } from "./WatchFlowProvider";
@@ -32,10 +38,19 @@ jest.mock("../api/watchApi", () => ({
 
 jest.mock("../api/paymentApi", () => ({
   chargeSavedCard: jest.fn(),
+  closePaymentAttempt: jest.fn(),
   confirmPayment: jest.fn(),
+  getPaymentStatus: jest.fn(),
   getSavedPaymentMethod: jest.fn(),
-  initializeHostedPayment: jest.fn(),
+  initializeInlinePayment: jest.fn(),
+  savePaymentMethod: jest.fn(),
   waitForPaymentCompletion: jest.fn(),
+  waitForPaymentVerification: jest.fn(),
+}));
+
+jest.mock("../utils/flutterwaveInline", () => ({
+  FlutterwaveInlineCancelledError: class extends Error {},
+  openFlutterwaveInline: jest.fn(),
 }));
 
 jest.mock("../utils/pendingPayment", () => ({
@@ -59,6 +74,7 @@ const paymentWindow = {
   sessionStorage: window.sessionStorage,
 };
 let paymentResultHandler;
+const originalWindowFocus = window.focus;
 
 function WatchTrigger() {
   const { startWatch } = useWatchFlow();
@@ -93,18 +109,26 @@ function renderFlow() {
 }
 
 beforeEach(() => {
+  window.focus = jest.fn();
   paymentWindow.closed = false;
   openPaymentWindow.mockReturnValue(paymentWindow);
   subscribeToPaymentResults.mockImplementation((handler) => {
     paymentResultHandler = handler;
     return jest.fn();
   });
+  waitForPaymentCompletion.mockReturnValue(new Promise(() => undefined));
+  waitForPaymentVerification.mockReturnValue(new Promise(() => undefined));
+  openFlutterwaveInline.mockReturnValue(new Promise(() => undefined));
 });
 
 afterEach(() => {
   jest.clearAllMocks();
   window.localStorage.clear();
   window.sessionStorage.clear();
+});
+
+afterAll(() => {
+  window.focus = originalWindowFocus;
 });
 
 test("redirects signed-out viewers to authentication", () => {
@@ -195,7 +219,7 @@ test("offers saved or different card after the user continues to payment", async
   ).toBeInTheDocument();
 });
 
-test("starts hosted checkout when the user has no saved card", async () => {
+test("opens Flutterwave Inline without a popup when the user has no saved card", async () => {
   getAuthToken.mockReturnValue("test-token");
   getWatchAccess.mockResolvedValue({
     action: "PURCHASE",
@@ -203,9 +227,12 @@ test("starts hosted checkout when the user has no saved card", async () => {
     reason: "PURCHASE_REQUIRED",
   });
   getSavedPaymentMethod.mockResolvedValue({ tokenPayload: null });
-  initializeHostedPayment.mockResolvedValue({
-    checkoutUrl: "https://checkout.flutterwave.com/test",
-    code: "CHECKOUT_READY",
+  initializeInlinePayment.mockResolvedValue({
+    amount: 10.99,
+    code: "INLINE_CHECKOUT_READY",
+    currency: "USD",
+    customer: { email: "viewer@example.com", name: "Viewer" },
+    publicKey: "FLWPUBK_TEST-key-X",
     txRef: "tx-1",
   });
   renderFlow();
@@ -216,29 +243,32 @@ test("starts hosted checkout when the user has no saved card", async () => {
   );
 
   await waitFor(() => {
-    expect(initializeHostedPayment).toHaveBeenCalledWith(
+    expect(initializeInlinePayment).toHaveBeenCalledWith(
       movie.id,
-      expect.stringContaining(`web-hosted-${movie.id}-`),
+      expect.stringContaining(`web-inline-${movie.id}-`),
     );
   });
-  expect(openPaymentWindow).toHaveBeenCalled();
-  expect(redirectToExternalCheckout).toHaveBeenCalledWith(
-    "https://checkout.flutterwave.com/test",
-    paymentWindow,
+  expect(openFlutterwaveInline).toHaveBeenCalledWith(
+    expect.objectContaining({ txRef: "tx-1" }),
   );
+  expect(openPaymentWindow).not.toHaveBeenCalled();
+  expect(redirectToExternalCheckout).not.toHaveBeenCalled();
 });
 
-test("starts playback in the main window after popup verification", async () => {
+test("starts playback in the main window after saved-card popup verification", async () => {
   getAuthToken.mockReturnValue("test-token");
   getWatchAccess.mockResolvedValue({
     action: "PURCHASE",
     movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
     reason: "PURCHASE_REQUIRED",
   });
-  getSavedPaymentMethod.mockResolvedValue({ tokenPayload: null });
-  initializeHostedPayment.mockResolvedValue({
-    checkoutUrl: "https://checkout.flutterwave.com/test",
-    code: "CHECKOUT_READY",
+  getSavedPaymentMethod.mockResolvedValue({
+    tokenPayload: { _id: "card-1", cardType: "visa", last4Digits: "4242" },
+  });
+  chargeSavedCard.mockResolvedValue({
+    code: "AUTHORIZATION_REQUIRED",
+    redirectUrl: "https://flutterwave.test/authorize",
+    transactionId: "flw-popup-1",
     txRef: "tx-popup-1",
   });
   createPlaybackSession.mockResolvedValue({
@@ -253,6 +283,9 @@ test("starts playback in the main window after popup verification", async () => 
   fireEvent.click(
     await screen.findByRole("button", { name: "Pay $10.99" }),
   );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
   await waitFor(() =>
     expect(redirectToExternalCheckout).toHaveBeenCalled(),
   );
@@ -262,6 +295,7 @@ test("starts playback in the main window after popup verification", async () => 
       movieId: movie.id,
       source: "africanmovies-payment",
       status: "successful",
+      transactionId: "flw-popup-1",
       txRef: "tx-popup-1",
     });
   });
@@ -269,4 +303,129 @@ test("starts playback in the main window after popup verification", async () => 
   expect(await screen.findByText("Player route")).toBeInTheDocument();
   expect(closePaymentWindow).toHaveBeenCalledWith(paymentWindow);
   expect(createPlaybackSession).toHaveBeenCalledWith(movie.id);
+});
+
+test("actively verifies a saved-card payment without a popup message", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  getWatchAccess.mockResolvedValue({
+    action: "PURCHASE",
+    movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
+    reason: "PURCHASE_REQUIRED",
+  });
+  getSavedPaymentMethod.mockResolvedValue({
+    tokenPayload: { _id: "card-1", cardType: "visa", last4Digits: "4242" },
+  });
+  chargeSavedCard.mockResolvedValue({
+    code: "AUTHORIZATION_REQUIRED",
+    redirectUrl: "https://flutterwave.test/authorize",
+    transactionId: "flw-polled-1",
+    txRef: "tx-polled-1",
+  });
+  waitForPaymentVerification.mockResolvedValue({
+    movieId: movie.id,
+    transactionId: "flw-polled-1",
+  });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movie.id, title: movie.title },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+  renderFlow();
+
+  fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+
+  expect(await screen.findByText("Player route")).toBeInTheDocument();
+  expect(waitForPaymentVerification).toHaveBeenCalledWith(
+    {
+      transactionId: "flw-polled-1",
+      txRef: "tx-polled-1",
+    },
+    { attempts: 120, interval: 1500 },
+  );
+  expect(createPlaybackSession).toHaveBeenCalledWith(movie.id);
+});
+
+test("recovers the transaction ID for an older pending saved-card session", async () => {
+  savePendingPayment({
+    method: "saved_card",
+    movieId: movie.id,
+    movieTitle: movie.title,
+    txRef: "tx-existing-1",
+  });
+  getPaymentStatus.mockResolvedValue({
+    movieId: movie.id,
+    status: "pending",
+    transactionId: "flw-existing-1",
+  });
+  waitForPaymentVerification.mockResolvedValue({
+    movieId: movie.id,
+    status: "successful",
+    transactionId: "flw-existing-1",
+  });
+  createPlaybackSession.mockResolvedValue({
+    access: { currentTime: 0, orderId: "order-1" },
+    movie: { id: movie.id, title: movie.title },
+    playback: { expiresIn: 300, url: "https://example.com/movie.m3u8" },
+    status: "READY",
+  });
+
+  renderFlow();
+
+  expect(await screen.findByText("Player route")).toBeInTheDocument();
+  expect(getPaymentStatus).toHaveBeenCalledWith("tx-existing-1");
+  expect(waitForPaymentVerification).toHaveBeenCalledWith(
+    {
+      transactionId: "flw-existing-1",
+      txRef: "tx-existing-1",
+    },
+    { attempts: 120, interval: 1500 },
+  );
+});
+
+test("verifies Inline payment before offering to save the new card", async () => {
+  getAuthToken.mockReturnValue("test-token");
+  getWatchAccess.mockResolvedValue({
+    action: "PURCHASE",
+    movie: { id: movie.id, title: movie.title, price: 10.99, currency: "USD" },
+    reason: "PURCHASE_REQUIRED",
+  });
+  getSavedPaymentMethod.mockResolvedValue({ tokenPayload: null });
+  initializeInlinePayment.mockResolvedValue({
+    amount: 10.99,
+    currency: "USD",
+    customer: { email: "viewer@example.com", name: "Viewer" },
+    publicKey: "FLWPUBK_TEST-key-X",
+    txRef: "tx-inline-1",
+  });
+  openFlutterwaveInline.mockResolvedValue({
+    status: "successful",
+    transaction_id: "flw-inline-1",
+    tx_ref: "tx-inline-1",
+  });
+  waitForPaymentVerification.mockResolvedValue({
+    movieId: movie.id,
+    status: "successful",
+    transactionId: "flw-inline-1",
+  });
+  renderFlow();
+
+  fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Pay $10.99" }),
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: "Save this card?" }),
+  ).toBeInTheDocument();
+  expect(waitForPaymentVerification).toHaveBeenCalledWith(
+    { transactionId: "flw-inline-1", txRef: "tx-inline-1" },
+    { attempts: 30, interval: 2000 },
+  );
 });

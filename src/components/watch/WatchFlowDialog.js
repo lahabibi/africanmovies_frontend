@@ -30,16 +30,22 @@ const loadingCopy = {
     title: "Payment window open",
     message: "Complete your secure payment in the separate window.",
   },
+  "saving-card": {
+    title: "Saving card",
+    message: "Updating your saved payment method securely.",
+  },
 };
 
 function WatchFlowDialog({
   flow,
   onClose,
+  onContinueAfterPayment,
   onConfirmFree,
   onPayWithNewCard,
   onPayWithSavedCard,
   onPurchase,
   onRetry,
+  onSaveCard,
 }) {
   const closeButtonRef = useRef(null);
   const isBusy = Boolean(loadingCopy[flow.phase]);
@@ -193,6 +199,62 @@ function WatchFlowDialog({
                 type="button"
               >
                 Pay {price}
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {flow.phase === "save-card" || flow.phase === "replace-card" ? (
+          <>
+            <WatchDialogBody
+              icon={<CreditCard />}
+              message={
+                flow.phase === "replace-card"
+                  ? "Use the card from this payment for future purchases?"
+                  : "Use this card for faster payments next time?"
+              }
+              title={
+                flow.phase === "replace-card"
+                  ? "Replace saved card?"
+                  : "Save this card?"
+              }
+            />
+            <div className="watch-flow-modal__actions">
+              <button onClick={onContinueAfterPayment} type="button">
+                Not now
+              </button>
+              <button
+                className="watch-flow-modal__primary"
+                onClick={onSaveCard}
+                type="button"
+              >
+                {flow.phase === "replace-card" ? "Replace card" : "Save card"}
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {flow.phase === "card-save-error" ? (
+          <>
+            <WatchDialogBody
+              icon={<AlertCircle />}
+              message={
+                flow.error ||
+                "Your payment succeeded, but the card could not be saved."
+              }
+              title="Card was not saved"
+              variant="error"
+            />
+            <div className="watch-flow-modal__actions">
+              <button onClick={onContinueAfterPayment} type="button">
+                Continue without saving
+              </button>
+              <button
+                className="watch-flow-modal__primary"
+                onClick={onSaveCard}
+                type="button"
+              >
+                Try again
               </button>
             </div>
           </>
