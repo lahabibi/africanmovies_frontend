@@ -8,6 +8,7 @@ import Genres from "./pages/Genres";
 import Home from "./pages/Home";
 import Languages from "./pages/Languages";
 import Library from "./pages/Library";
+import LaunchPage from "./pages/LaunchPage";
 import MovieDetails from "./pages/MovieDetails";
 import NotFound from "./pages/NotFound";
 import OtpPage from "./pages/OtpPage";
@@ -21,9 +22,14 @@ import PurchaseHistory from "./pages/PurchaseHistory";
 import SavedMovies from "./pages/SavedMovies";
 import Search from "./pages/Search";
 import WatchFlowProvider from "./providers/WatchFlowProvider";
+import { IS_HOLDING_PAGE, SITE_MODE } from "./config/siteMode";
 import "./styles/app.css";
 
 function App() {
+  if (IS_HOLDING_PAGE) {
+    return <LaunchPage mode={SITE_MODE} />;
+  }
+
   return (
     <BrowserRouter
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}

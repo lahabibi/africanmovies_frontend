@@ -1,5 +1,17 @@
 # Getting Started with Create React App
 
+## Site modes
+
+AfricanMovies supports three build-time site modes:
+
+- `npm start` or `npm run build` runs the full application.
+- `npm run start:coming-soon` previews the pre-launch page.
+- `npm run build:coming-soon` creates the pre-launch production build.
+- `npm run start:maintenance` previews the maintenance page.
+- `npm run build:maintenance` creates the maintenance production build.
+
+The holding pages replace every application route and do not call the backend.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
