@@ -12,6 +12,10 @@ AfricanMovies supports three build-time site modes:
 
 The holding pages replace every application route and do not call the backend.
 
+For the production code switch, change `SITE_MODE_SWITCH` in
+`src/config/siteMode.js` to `app`, `coming-soon`, or `maintenance`, then run the
+normal build and deploy it. The dedicated preview scripts override this switch.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
