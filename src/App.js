@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Languages from "./pages/Languages";
 import Library from "./pages/Library";
 import MovieDetails from "./pages/MovieDetails";
+import NotFound from "./pages/NotFound";
 import OtpPage from "./pages/OtpPage";
 import PaymentDetails from "./pages/PaymentDetails";
 import PaymentCallback from "./pages/PaymentCallback";
@@ -75,11 +76,8 @@ function App() {
           <Route path="/signup" element={<AuthPage />} />
           <Route path="/otp" element={<OtpPage />} />
           <Route path="/movies" element={<AllMovies />} />
-          <Route path="/movies/:slug" element={<MovieDetails />} />
-          <Route
-            path="*"
-            element={<PlaceholderPage title="Page Not Found" />}
-          />
+          <Route path="/movies/:id" element={<MovieDetails />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </WatchFlowProvider>
     </BrowserRouter>

@@ -62,15 +62,15 @@ const aboutFieldOrder = [
 ];
 
 function MovieDetails() {
-  const { slug } = useParams();
+  const { id } = useParams();
   const {
     data: apiMovieDetails,
     error: movieDetailsError,
     isError: isMovieDetailsError,
     isLoading: isMovieDetailsLoading,
     refetch: refetchMovieDetails,
-  } = useMovieDetails(slug);
-  const hasValidMovieId = isMongoObjectId(slug);
+  } = useMovieDetails(id);
+  const hasValidMovieId = isMongoObjectId(id);
   const isMovieNotFound = !hasValidMovieId || movieDetailsError?.status === 404;
 
   if (isMovieDetailsLoading) {
