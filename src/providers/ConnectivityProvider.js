@@ -69,25 +69,30 @@ function ConnectivityProvider({ children }) {
     setIsChecking(true);
     const controller = new AbortController();
     healthAbortRef.current = controller;
+    let didTimeout = false;
 
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      HEALTH_CHECK_TIMEOUT,
-    );
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, HEALTH_CHECK_TIMEOUT);
 
     const request = getBackendHealth({ signal: controller.signal })
       .then(async () => {
         if (mountedRef.current) await showAvailable();
         return true;
       })
-      .catch(() => {
+      .catch((error) => {
         if (!mountedRef.current) return false;
+        if (error?.name === "AbortError" && !didTimeout) return false;
 
         showConnectionIssue(browserIsOnline() ? "unavailable" : "offline");
         return false;
       })
       .finally(() => {
         window.clearTimeout(timeoutId);
+
+        if (healthAbortRef.current !== controller) return;
+
         inFlightRef.current = null;
         healthAbortRef.current = null;
         if (mountedRef.current) setIsChecking(false);
@@ -101,7 +106,10 @@ function ConnectivityProvider({ children }) {
     mountedRef.current = true;
 
     const handleOffline = () => {
-      healthAbortRef.current?.abort();
+      const activeController = healthAbortRef.current;
+      healthAbortRef.current = null;
+      inFlightRef.current = null;
+      activeController?.abort();
       showConnectionIssue("offline");
     };
     const handleOnline = () => checkConnection();
@@ -125,7 +133,10 @@ function ConnectivityProvider({ children }) {
 
     return () => {
       mountedRef.current = false;
-      healthAbortRef.current?.abort();
+      const activeController = healthAbortRef.current;
+      healthAbortRef.current = null;
+      inFlightRef.current = null;
+      activeController?.abort();
       window.clearInterval(intervalId);
       window.clearTimeout(restoredTimerRef.current);
       window.removeEventListener("offline", handleOffline);

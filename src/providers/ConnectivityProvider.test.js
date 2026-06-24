@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { getBackendHealth } from "../api/healthApi";
 import ConnectivityProvider from "./ConnectivityProvider";
 
@@ -14,18 +15,20 @@ function setBrowserOnline(isOnline) {
   });
 }
 
-function renderProvider() {
+function renderProvider({ strict = false } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
-  return render(
+  const provider = (
     <QueryClientProvider client={queryClient}>
       <ConnectivityProvider>
         <div>Application content</div>
       </ConnectivityProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+
+  return render(strict ? <StrictMode>{provider}</StrictMode> : provider);
 }
 
 beforeEach(() => {
@@ -55,4 +58,33 @@ test("shows backend downtime and recovers after a successful retry", async () =>
   await waitFor(() => {
     expect(screen.getByText("You're back online")).toBeInTheDocument();
   });
+});
+
+test("does not report downtime when the startup check is restarted", async () => {
+  getBackendHealth
+    .mockImplementationOnce(({ signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            const error = new Error("Request cancelled");
+            error.name = "AbortError";
+            reject(error);
+          },
+          { once: true },
+        );
+      }),
+    )
+    .mockResolvedValueOnce({ status: "OK" });
+
+  renderProvider({ strict: true });
+
+  await waitFor(() => {
+    expect(getBackendHealth).toHaveBeenCalledTimes(2);
+  });
+
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("AfricanMovies servers can't be reached"),
+  ).not.toBeInTheDocument();
 });
