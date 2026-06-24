@@ -4,6 +4,7 @@ import {
   invalidateAuthSession,
   isInvalidSessionResponse,
 } from "./authSession";
+import { reportApiConnectionError } from "./connectivityEvents";
 
 export class ApiError extends Error {
   constructor(message, { data, status } = {}) {
@@ -19,6 +20,7 @@ export async function apiClient(endpoint, options = {}) {
     body,
     headers,
     method = body ? "POST" : "GET",
+    monitorConnection = true,
     requireAuth = true,
     ...fetchOptions
   } = options;
@@ -42,12 +44,26 @@ export async function apiClient(endpoint, options = {}) {
     requestHeaders.set("x-device-id", deviceId);
   }
 
-  const response = await fetch(buildApiUrl(endpoint), {
-    ...fetchOptions,
-    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
-    headers: requestHeaders,
-    method,
-  });
+  let response;
+
+  try {
+    response = await fetch(buildApiUrl(endpoint), {
+      ...fetchOptions,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+      headers: requestHeaders,
+      method,
+    });
+  } catch (error) {
+    if (monitorConnection && error?.name !== "AbortError") {
+      reportApiConnectionError();
+    }
+
+    throw error;
+  }
+
+  if (monitorConnection && response.status >= 500) {
+    reportApiConnectionError();
+  }
 
   const data = await parseResponse(response);
 

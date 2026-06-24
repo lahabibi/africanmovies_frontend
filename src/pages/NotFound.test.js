@@ -17,7 +17,7 @@ test("offers clear recovery paths from a missing page", () => {
   );
 
   expect(
-    screen.getByRole("heading", { name: "This story isn't here." }),
+    screen.getByRole("heading", { name: "This page doesn't exist." }),
   ).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Browse Movies" })).toHaveAttribute(
     "href",
