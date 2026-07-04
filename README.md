@@ -16,6 +16,22 @@ For the production code switch, change `SITE_MODE_SWITCH` in
 `src/config/siteMode.js` to `app`, `coming-soon`, or `maintenance`, then run the
 normal build and deploy it. The dedicated preview scripts override this switch.
 
+## Production build policy
+
+AfricanMovies currently retains Create React App for the v1 web release. Build
+and test packages are development dependencies and must run only on a trusted
+developer machine or controlled build runner.
+
+Production serves only the generated static `build/` directory through Nginx.
+Never run `npm start`, `react-scripts start`, or a Node package installation as
+the public web server.
+
+Use `npm audit --omit=dev` to audit browser runtime dependencies separately from
+the accepted CRA build-tool findings. Do not run `npm audit fix --force`.
+
+See [Build Tool Security](./docs/build-security.md) for the current risk decision,
+controls, and review triggers.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
