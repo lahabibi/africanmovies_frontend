@@ -22,6 +22,9 @@ AfricanMovies currently retains Create React App for the v1 web release. Build
 and test packages are development dependencies and must run only on a trusted
 developer machine or controlled build runner.
 
+Use npm `10.9.2` when changing dependencies or regenerating `package-lock.json`.
+This matches the lockfile behavior used by the AWS Amplify build environment.
+
 Production serves only the generated static `build/` directory through Nginx.
 Never run `npm start`, `react-scripts start`, or a Node package installation as
 the public web server.

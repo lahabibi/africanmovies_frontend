@@ -37,6 +37,7 @@ SVG, or dependency input.
 4. Keep production secrets out of `REACT_APP_*` variables. Create React App embeds
    those values into the public JavaScript bundle.
 5. Run `npm ci`, the complete test suite, and `npm run build` for every release.
+   Use npm `10.9.2` whenever the lockfile is regenerated.
 6. Inspect dependency and lockfile changes during review.
 7. Deploy only the generated `build/` directory to the public web host.
 8. Serve the static build through Nginx. Never expose the CRA development server.
@@ -69,7 +70,7 @@ application rather than the local compiler and test runner.
 ## Release commands
 
 ```bash
-npm ci
+npx --yes npm@10.9.2 ci
 CI=true npm test -- --watchAll=false
 npm run build
 npm audit --omit=dev
