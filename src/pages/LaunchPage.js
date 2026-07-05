@@ -37,7 +37,7 @@ const pageContent = {
     description:
       "We're making AfricanMovies better behind the scenes. Your account, purchases and library remain safe while we prepare the platform for your return.",
     eyebrow: "A brief intermission",
-    headline: "We'll be back on screen shortly.",
+    headline: "We'll be back on screen shortly",
     status: "Maintenance underway",
     supporting: "Web, iOS and Android service will return together.",
   },
@@ -91,7 +91,10 @@ function LaunchPage({ mode = "coming-soon" }) {
         <h1 id="launch-title">{content.headline}</h1>
         <p className="launch-page__description">{content.description}</p>
 
-        <div className="launch-page__platforms" aria-label="AfricanMovies platforms">
+        <div
+          className="launch-page__platforms"
+          aria-label="AfricanMovies platforms"
+        >
           {platforms.map(({ Icon, label }) => (
             <span key={label}>
               <Icon aria-hidden="true" size={19} strokeWidth={1.8} />
@@ -102,7 +105,10 @@ function LaunchPage({ mode = "coming-soon" }) {
 
         <p className="launch-page__supporting">{content.supporting}</p>
 
-        <a className="launch-page__contact" href="mailto:info@africanmovies.com">
+        <a
+          className="launch-page__contact"
+          href="mailto:info@africanmovies.com"
+        >
           <Mail aria-hidden="true" size={18} strokeWidth={1.8} />
           Contact AfricanMovies
           <ArrowUpRight aria-hidden="true" size={17} strokeWidth={1.8} />
