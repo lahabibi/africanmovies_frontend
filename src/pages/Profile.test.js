@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import {
   useActiveDevices,
   useCurrentUser,
+  useDeleteAccount,
   useDeleteProfileImage,
   useLogoutDevice,
   useLogoutOtherDevices,
@@ -14,6 +15,7 @@ import Profile from "./Profile";
 jest.mock("../hooks/useAuth", () => ({
   useActiveDevices: jest.fn(),
   useCurrentUser: jest.fn(),
+  useDeleteAccount: jest.fn(),
   useDeleteProfileImage: jest.fn(),
   useLogoutDevice: jest.fn(),
   useLogoutOtherDevices: jest.fn(),
@@ -28,6 +30,7 @@ jest.mock("../components/layout/Footer", () => () => null);
 jest.mock("../components/account/AccountSidebar", () => () => null);
 
 const updateUsername = jest.fn();
+const deleteAccount = jest.fn();
 const uploadProfileImage = jest.fn();
 const deleteProfileImage = jest.fn();
 const logoutDevice = jest.fn();
@@ -60,6 +63,10 @@ beforeEach(() => {
   useUpdateUsername.mockReturnValue({
     isPending: false,
     mutateAsync: updateUsername,
+  });
+  useDeleteAccount.mockReturnValue({
+    isPending: false,
+    mutateAsync: deleteAccount,
   });
   useUploadProfileImage.mockReturnValue({
     isPending: false,
@@ -108,6 +115,7 @@ beforeEach(() => {
     mutateAsync: logoutOtherDevices,
   });
   updateUsername.mockResolvedValue({});
+  deleteAccount.mockResolvedValue({});
   uploadProfileImage.mockResolvedValue({});
   deleteProfileImage.mockResolvedValue({});
   logoutDevice.mockResolvedValue({ success: true });
@@ -247,6 +255,35 @@ test("removes the current profile picture", async () => {
     expect(deleteProfileImage).toHaveBeenCalledTimes(1);
   });
   expect(await screen.findByText("Profile picture removed")).toBeInTheDocument();
+});
+
+test("deletes the account only after the DELETE confirmation is typed", async () => {
+  renderProfile();
+
+  expect(
+    screen.getByText(/Permanently delete your profile/i),
+  ).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete Account" }));
+
+  expect(
+    screen.getByRole("heading", { name: "Delete account?" }),
+  ).toBeInTheDocument();
+
+  const submitButton = screen
+    .getAllByRole("button", { name: "Delete Account" })
+    .find((button) => button.closest(".profile-modal"));
+
+  expect(submitButton).toBeDisabled();
+  fireEvent.change(screen.getByPlaceholderText("DELETE"), {
+    target: { value: "DELETE" },
+  });
+  expect(submitButton).not.toBeDisabled();
+  fireEvent.click(submitButton);
+
+  await waitFor(() => {
+    expect(deleteAccount).toHaveBeenCalledWith("DELETE");
+  });
 });
 
 test("shows the active device count and logs out a non-current device", async () => {

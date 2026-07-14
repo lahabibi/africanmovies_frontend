@@ -42,6 +42,13 @@ export function logout() {
   });
 }
 
+export function deleteAccount(confirmation) {
+  return apiClient("/auth/account", {
+    body: { confirmation },
+    method: "DELETE",
+  });
+}
+
 export function updateUsername(username) {
   return apiClient("/auth/update-username", {
     body: { username },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   Camera,
@@ -15,6 +15,7 @@ import {
   Pencil,
   RefreshCw,
   Smartphone,
+  ShieldAlert,
   Trash2,
 } from "lucide-react";
 import AccountSidebar from "../components/account/AccountSidebar";
@@ -23,6 +24,7 @@ import Footer from "../components/layout/Footer";
 import {
   useActiveDevices,
   useCurrentUser,
+  useDeleteAccount,
   useDeleteProfileImage,
   useLogoutDevice,
   useLogoutOtherDevices,
@@ -50,10 +52,14 @@ const deviceIcons = {
 
 function Profile() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [editingField, setEditingField] = useState(null);
+  const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] =
+    useState(false);
   const [notice, setNotice] = useState(null);
   const noticeTimerRef = useRef(null);
   const currentUserQuery = useCurrentUser();
+  const deleteAccountMutation = useDeleteAccount();
   const updateUsernameMutation = useUpdateUsername();
   const uploadProfileImageMutation = useUploadProfileImage();
   const deleteProfileImageMutation = useDeleteProfileImage();
@@ -128,6 +134,12 @@ function Profile() {
     }
   };
 
+  const handleDeleteAccount = async (confirmation) => {
+    await deleteAccountMutation.mutateAsync(confirmation);
+    setIsDeleteAccountConfirmOpen(false);
+    navigate("/", { replace: true });
+  };
+
   return (
     <AppShell>
       <main className="profile-page">
@@ -176,6 +188,9 @@ function Profile() {
                 />
               )}
               <ActiveDevices onNotice={showNotice} />
+              <DeleteAccountPanel
+                onRequestDelete={() => setIsDeleteAccountConfirmOpen(true)}
+              />
             </div>
 
             <NeedHelpCard />
@@ -187,6 +202,13 @@ function Profile() {
           field={editingField}
           onClose={() => setEditingField(null)}
           onSave={handleSaveUsername}
+        />
+      ) : null}
+      {isDeleteAccountConfirmOpen ? (
+        <DeleteAccountConfirmModal
+          isPending={deleteAccountMutation.isPending}
+          onCancel={() => setIsDeleteAccountConfirmOpen(false)}
+          onConfirm={handleDeleteAccount}
         />
       ) : null}
       <Footer />
@@ -670,6 +692,131 @@ function NeedHelpCard() {
         <ExternalLink aria-hidden="true" size={15} strokeWidth={1.9} />
       </Link>
     </aside>
+  );
+}
+
+function DeleteAccountPanel({ onRequestDelete }) {
+  return (
+    <section
+      className="profile-panel profile-danger-card"
+      aria-labelledby="delete-account-title"
+      id="delete-account"
+    >
+      <span className="profile-danger-card__icon" aria-hidden="true">
+        <ShieldAlert size={28} strokeWidth={1.8} />
+      </span>
+      <div className="profile-danger-card__copy">
+        <h2 id="delete-account-title">Delete Account</h2>
+        <p>
+          Permanently delete your profile, devices, favorites, watchlist, and
+          viewing activity.
+        </p>
+        <small>
+          Transaction records required for refunds, accounting, and fraud
+          prevention are anonymized and retained.
+        </small>
+      </div>
+      <button onClick={onRequestDelete} type="button">
+        Delete Account
+      </button>
+    </section>
+  );
+}
+
+function DeleteAccountConfirmModal({ isPending, onCancel, onConfirm }) {
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+  const canDelete = confirmation === "DELETE";
+
+  useEffect(() => {
+    inputRef.current?.focus();
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !isPending) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isPending, onCancel]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!canDelete) {
+      setError('Type "DELETE" to confirm account deletion.');
+      return;
+    }
+
+    setError("");
+
+    try {
+      await onConfirm(confirmation);
+    } catch (deleteError) {
+      setError(
+        deleteError?.message ||
+          "We could not delete your account. Please try again.",
+      );
+    }
+  };
+
+  return (
+    <div
+      className="profile-modal"
+      onMouseDown={() => {
+        if (!isPending) onCancel();
+      }}
+      role="presentation"
+    >
+      <form
+        aria-labelledby="delete-account-confirm-title"
+        aria-modal="true"
+        className="profile-modal__card profile-modal__card--danger"
+        onMouseDown={(event) => event.stopPropagation()}
+        onSubmit={handleSubmit}
+        role="dialog"
+      >
+        <div className="profile-modal__heading">
+          <h2 id="delete-account-confirm-title">Delete account?</h2>
+          <p>
+            This action is permanent. Your personal profile data will be removed
+            from AfricanMovies, and you will be signed out on this device.
+          </p>
+        </div>
+
+        <label className="profile-modal__field">
+          <span>Type DELETE to continue</span>
+          <input
+            autoComplete="off"
+            disabled={isPending}
+            onChange={(event) => {
+              setConfirmation(event.target.value);
+              if (error) setError("");
+            }}
+            placeholder="DELETE"
+            ref={inputRef}
+            value={confirmation}
+          />
+        </label>
+
+        {error ? <p className="profile-modal__error">{error}</p> : null}
+
+        <div className="profile-modal__actions">
+          <button disabled={isPending} onClick={onCancel} type="button">
+            Cancel
+          </button>
+          <button
+            className="profile-modal__danger"
+            disabled={!canDelete || isPending}
+            type="submit"
+          >
+            {isPending ? "Deleting..." : "Delete Account"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

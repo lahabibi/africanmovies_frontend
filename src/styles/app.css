@@ -5109,6 +5109,80 @@
   background: rgba(var(--color-blue-rgb), 0.11);
 }
 
+.profile-danger-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border-color: rgba(255, 92, 106, 0.23);
+  background:
+    linear-gradient(135deg, rgba(255, 92, 106, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(11, 22, 36, 0.86), rgba(5, 12, 21, 0.86)),
+    rgba(7, 15, 25, 0.78);
+}
+
+.profile-danger-card__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 92, 106, 0.34);
+  border-radius: 999px;
+  color: #ff7d87;
+  background: rgba(255, 92, 106, 0.09);
+}
+
+.profile-danger-card__copy {
+  min-width: 0;
+}
+
+.profile-danger-card__copy h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.profile-danger-card__copy p,
+.profile-danger-card__copy small {
+  display: block;
+  margin: 7px 0 0;
+  color: var(--color-muted-strong);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profile-danger-card__copy small {
+  color: var(--color-muted);
+}
+
+.profile-danger-card > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 92, 106, 0.48);
+  border-radius: var(--radius-sm);
+  color: #ff8a94;
+  background: rgba(255, 92, 106, 0.08);
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.profile-danger-card > button:hover,
+.profile-danger-card > button:focus-visible {
+  border-color: rgba(255, 92, 106, 0.74);
+  color: #ffffff;
+  background: rgba(255, 92, 106, 0.18);
+}
+
 .active-devices {
   padding: 22px 22px 20px;
   scroll-margin-top: 96px;
@@ -5332,6 +5406,14 @@
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
 }
 
+.profile-modal__card--danger {
+  border-color: rgba(255, 92, 106, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 92, 106, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(12, 24, 39, 0.98), rgba(4, 11, 19, 0.98)),
+    #050b13;
+}
+
 .profile-modal__heading h2 {
   margin: 0;
   color: var(--color-text);
@@ -5414,9 +5496,23 @@
   font-weight: 700;
 }
 
+.profile-modal__actions .profile-modal__danger {
+  border-color: transparent;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff5c6a, #d73545);
+  box-shadow: 0 14px 28px rgba(255, 92, 106, 0.22);
+  font-weight: 800;
+}
+
 .profile-modal__actions button:hover,
 .profile-modal__actions button:focus-visible {
   border-color: rgba(var(--color-blue-rgb), 0.52);
+}
+
+.profile-modal__actions .profile-modal__danger:hover,
+.profile-modal__actions .profile-modal__danger:focus-visible {
+  border-color: transparent;
+  background: linear-gradient(180deg, #ff6e7a, #e03d4c);
 }
 
 .profile-modal__actions button:disabled {
@@ -9791,6 +9887,18 @@
   .site-footer__social a {
     width: 38px;
     height: 38px;
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-danger-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .profile-danger-card > button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 

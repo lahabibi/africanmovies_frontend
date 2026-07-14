@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  deleteAccount,
   deleteProfileImage,
   enrichCurrentDevice,
   getActiveDevices,
@@ -80,10 +81,19 @@ export function useLogout() {
     mutationFn: logout,
     onSettled: () => {
       clearAuthSession();
-      queryClient.setQueryData(authKeys.currentUser, null);
-      queryClient.removeQueries({ queryKey: authKeys.currentUser });
-      queryClient.removeQueries({ queryKey: ["catalog", "movies", "saved"] });
-      queryClient.removeQueries({ queryKey: ["orders"] });
+      clearAuthenticatedQueryCache(queryClient);
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      clearAuthSession();
+      clearAuthenticatedQueryCache(queryClient);
     },
   });
 }
@@ -201,6 +211,15 @@ function commitCurrentUser(queryClient, user, token) {
   const normalizedUser = normalizeUser(user);
   setStoredAuthUser(normalizedUser);
   queryClient.setQueryData(authKeys.currentUser, normalizedUser);
+}
+
+function clearAuthenticatedQueryCache(queryClient) {
+  queryClient.setQueryData(authKeys.currentUser, null);
+  queryClient.removeQueries({ queryKey: ["auth"] });
+  queryClient.removeQueries({ queryKey: ["catalog"] });
+  queryClient.removeQueries({ queryKey: ["orders"] });
+  queryClient.removeQueries({ queryKey: ["payments"] });
+  queryClient.removeQueries({ queryKey: ["watch-access"] });
 }
 
 function normalizeUser(user) {

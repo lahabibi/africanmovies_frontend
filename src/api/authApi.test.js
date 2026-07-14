@@ -1,6 +1,6 @@
 import { ensureDeviceId } from "./authToken";
 import { apiClient } from "./client";
-import { enrichCurrentDevice, verifyOtp } from "./authApi";
+import { deleteAccount, enrichCurrentDevice, verifyOtp } from "./authApi";
 import { getDeviceMetadata } from "../utils/deviceInfo";
 
 jest.mock("./client", () => ({ apiClient: jest.fn() }));
@@ -46,5 +46,14 @@ test("posts browser metadata through the authenticated enrichment endpoint", asy
       userAgentName: "Chrome",
     },
     method: "POST",
+  });
+});
+
+test("sends typed confirmation to the account deletion endpoint", async () => {
+  await deleteAccount("DELETE");
+
+  expect(apiClient).toHaveBeenCalledWith("/auth/account", {
+    body: { confirmation: "DELETE" },
+    method: "DELETE",
   });
 });
