@@ -132,6 +132,8 @@ function MovieDetailsContent({ movie }) {
   const isWatchBusy =
     isBusy && String(activeMovieId) === String(movieId);
   const canRequestTrailerAccess = isMongoObjectId(movieId);
+  const shouldLoadTrailerBackground =
+    !hasBannerPicture && hasTrailer && canRequestTrailerAccess;
   const isAuthenticated = Boolean(getAuthToken());
   const { data: movieUserData, isLoading: isMovieUserDataLoading } =
     useMovieUserData(movieId, {
@@ -146,7 +148,7 @@ function MovieDetailsContent({ movie }) {
     error: trailerError,
     isFetching: isTrailerFetching,
     refetch: refetchTrailerAccess,
-  } = useTrailerAccess(movieId, { enabled: false });
+  } = useTrailerAccess(movieId, { enabled: shouldLoadTrailerBackground });
   const trailerSource = useMemo(() => {
     if (trailerAccess) {
       return resolveTrailerPlaybackSource(trailerAccess, movie);
@@ -158,6 +160,17 @@ function MovieDetailsContent({ movie }) {
 
     return null;
   }, [canRequestTrailerAccess, movie, trailerAccess, trailerError]);
+  const backgroundTrailerSource = useMemo(() => {
+    if (trailerAccess) {
+      return resolveTrailerPlaybackSource(trailerAccess, movie);
+    }
+
+    if (!canRequestTrailerAccess) {
+      return resolveTrailerPlaybackSource(null, movie);
+    }
+
+    return null;
+  }, [canRequestTrailerAccess, movie, trailerAccess]);
   const isTrailerLoading =
     isTrailerOpen &&
     canRequestTrailerAccess &&
@@ -280,7 +293,10 @@ function MovieDetailsContent({ movie }) {
               aria-hidden="true"
             />
           ) : (
-            <MovieDetailTrailerBackground movie={movie} />
+            <MovieDetailTrailerBackground
+              movie={movie}
+              source={backgroundTrailerSource}
+            />
           )}
           <span className="movie-detail-hero__shade" aria-hidden="true" />
 
@@ -626,10 +642,10 @@ function MovieDetailsRelatedEmpty({ viewAllTo }) {
   );
 }
 
-function MovieDetailTrailerBackground({ movie }) {
-  const trailerUrl = movie.trailerUrl || movie.heroMovie?.trailerUrl || "";
+function MovieDetailTrailerBackground({ movie, source }) {
+  const backgroundSource = source || null;
 
-  if (isNativeVideoUrl(trailerUrl)) {
+  if (backgroundSource?.type === "video") {
     return (
       <video
         autoPlay
@@ -638,18 +654,18 @@ function MovieDetailTrailerBackground({ movie }) {
         muted
         playsInline
         poster={movie.poster}
-        src={trailerUrl}
+        src={backgroundSource.src}
       />
     );
   }
 
-  if (trailerUrl) {
+  if (backgroundSource?.type === "iframe") {
     return (
       <iframe
         allow="autoplay; encrypted-media; picture-in-picture"
         aria-hidden="true"
         className="movie-detail-hero__video movie-detail-hero__video-frame"
-        src={getBackgroundTrailerUrl(trailerUrl)}
+        src={getBackgroundTrailerUrl(backgroundSource.src)}
         tabIndex="-1"
         title={`${movie.title} trailer background`}
       />
@@ -691,10 +707,6 @@ function getBackgroundTrailerUrl(trailerUrl) {
   } catch {
     return trailerUrl;
   }
-}
-
-function isNativeVideoUrl(url) {
-  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
 }
 
 function isMongoObjectId(value) {
