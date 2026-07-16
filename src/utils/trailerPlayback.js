@@ -53,19 +53,7 @@ function buildSignedCloudflareUrl(accessData) {
     return "";
   }
 
-  const videoId =
-    accessData.videoId ||
-    accessData.videoUID ||
-    accessData.uid ||
-    accessData.streamId ||
-    getJwtSubject(token);
-
-  if (!videoId) {
-    return "";
-  }
-
-  const url = new URL(`${CLOUDFLARE_IFRAME_BASE}/${videoId}`);
-  url.searchParams.set("token", token);
+  const url = new URL(`${CLOUDFLARE_IFRAME_BASE}/${token}`);
   applyCloudflarePlayerParams(url);
 
   return url.toString();
@@ -102,25 +90,4 @@ function applyCloudflarePlayerParams(url) {
 
 function isNativeVideoUrl(url) {
   return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
-}
-
-function getJwtSubject(token) {
-  const [, payload] = String(token).split(".");
-
-  if (!payload) {
-    return "";
-  }
-
-  try {
-    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const paddedPayload = normalizedPayload.padEnd(
-      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
-      "=",
-    );
-    const decodedPayload = JSON.parse(window.atob(paddedPayload));
-
-    return decodedPayload.sub || "";
-  } catch {
-    return "";
-  }
 }
