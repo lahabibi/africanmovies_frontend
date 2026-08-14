@@ -1,10 +1,10 @@
 const supportedSiteModes = new Set(["app", "coming-soon", "maintenance"]);
 
 // Production switch: "app" | "coming-soon" | "maintenance"
-export const SITE_MODE_SWITCH = "app";
+export const SITE_MODE_SWITCH = "coming-soon";
 
 export function normalizeSiteMode(mode) {
-  const normalizedMode = String(mode || "coming-soon")
+  const normalizedMode = String(mode || "app")
     .trim()
     .toLowerCase();
 
