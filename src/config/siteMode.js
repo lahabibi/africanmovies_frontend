@@ -4,7 +4,7 @@ const supportedSiteModes = new Set(["app", "coming-soon", "maintenance"]);
 export const SITE_MODE_SWITCH = "app";
 
 export function normalizeSiteMode(mode) {
-  const normalizedMode = String(mode || "app")
+  const normalizedMode = String(mode || "coming-soon")
     .trim()
     .toLowerCase();
 
