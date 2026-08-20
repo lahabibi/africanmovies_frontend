@@ -5,6 +5,8 @@ import { resolveTrailerPlaybackSource } from "../../utils/trailerPlayback";
 function HeroVideo({ movie }) {
   const trailerUrl = movie?.trailerUrl || "";
   const movieId = movie?.backendId || movie?.id;
+  const backdropImage = movie?.banner || movie?.poster;
+  const posterImage = movie?.poster || movie?.banner;
   const canRequestTrailerAccess = isMongoObjectId(movieId);
   const { data: trailerAccess } = useTrailerAccess(movieId, {
     enabled: Boolean(trailerUrl && canRequestTrailerAccess),
@@ -19,34 +21,51 @@ function HeroVideo({ movie }) {
     return null;
   }
 
+  const hasTrailerSource =
+    trailerSource?.type === "video" || trailerSource?.type === "iframe";
+
   return (
     <section
       className="hero-banner hero-banner--video"
       aria-label="Featured movie video"
     >
-      {trailerSource?.type === "video" ? (
-        <video
-          className="hero-banner__video"
-          autoPlay
-          loop
-          muted
-          playsInline
-          poster={movie.poster || movie.banner}
-          src={trailerSource.src}
-        />
-      ) : trailerSource?.type === "iframe" ? (
-        <iframe
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-          allowFullScreen
-          aria-hidden="true"
-          className="hero-banner__video hero-banner__video-frame"
-          src={getAutoplayEmbedUrl(trailerSource.src)}
-          title={`${movie.title} hero video`}
-        />
+      {hasTrailerSource ? (
+        <>
+          {backdropImage ? (
+            <img
+              className="hero-banner__video-backdrop"
+              src={backdropImage}
+              alt=""
+              aria-hidden="true"
+            />
+          ) : null}
+
+          <div className="hero-banner__video-stage" aria-hidden="true">
+            {trailerSource.type === "video" ? (
+              <video
+                className="hero-banner__video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster={posterImage}
+                src={trailerSource.src}
+              />
+            ) : (
+              <iframe
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+                className="hero-banner__video hero-banner__video-frame"
+                src={getAutoplayEmbedUrl(trailerSource.src)}
+                title={`${movie.title} hero video`}
+              />
+            )}
+          </div>
+        </>
       ) : (
         <img
           className="hero-banner__image"
-          src={movie.poster || movie.banner}
+          src={posterImage}
           alt=""
           aria-hidden="true"
         />

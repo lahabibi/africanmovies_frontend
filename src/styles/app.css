@@ -575,12 +575,17 @@
 }
 
 .hero-banner {
+  --hero-video-height: 384px;
   position: relative;
   isolation: isolate;
   min-height: 384px;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   background: #02070d;
+}
+
+.hero-banner--video {
+  min-height: var(--hero-video-height);
 }
 
 .hero-banner__image,
@@ -595,15 +600,65 @@
   object-position: center 38%;
 }
 
-.hero-banner__video-frame {
-  inset: auto;
-  top: 50%;
+.hero-banner__video-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  width: 100%;
+  height: 100%;
+  animation: heroImageFade 260ms ease-out;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0.42;
+  filter: saturate(1.12);
+}
+
+.hero-banner__video-stage {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-banner__video-stage::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      ellipse at 72% 42%,
+      rgba(var(--color-blue-rgb), 0.16),
+      transparent 46%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(2, 7, 13, 0.78) 0%,
+      rgba(2, 7, 13, 0.18) 44%,
+      rgba(2, 7, 13, 0.28) 100%
+    );
+  content: "";
+}
+
+.hero-banner__video-stage .hero-banner__video {
+  position: absolute;
+  top: 0;
   left: 50%;
-  width: max(100vw, 177.78vh);
-  height: max(56.25vw, 100vh);
+  z-index: 0;
+  width: max(100vw, calc(var(--hero-video-height) * 16 / 9));
+  height: max(var(--hero-video-height), 56.25vw);
+  min-width: 100%;
+  min-height: 100%;
+  animation: heroImageFade 260ms ease-out;
+  background: #02070d;
+  object-fit: cover;
+  object-position: center top;
+  transform: translateX(-50%);
+}
+
+.hero-banner__video-frame {
   border: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%);
 }
 
 .hero-banner__shade {
@@ -8685,11 +8740,16 @@
   }
 
   .hero-banner {
+    --hero-video-height: 510px;
     min-height: 510px;
   }
 
   .hero-banner__image,
   .hero-banner__video {
+    object-position: center top;
+  }
+
+  .hero-banner__video-backdrop {
     object-position: center top;
   }
 
