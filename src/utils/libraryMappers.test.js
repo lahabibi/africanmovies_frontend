@@ -18,10 +18,14 @@ test("maps library progress and active time remaining", () => {
   );
 
   expect(item).toMatchObject({
+    accessTimeLabel: "Expires in 3d",
     progress: 25,
+    progressLabel: "25% watched",
     slug: "movie-1",
     statusLabel: "Active",
     timeLabel: "3d left",
+    watchSummaryLabel: "25% watched • 30m of 2h",
+    watchTimeLabel: "30m of 2h",
   });
 });
 

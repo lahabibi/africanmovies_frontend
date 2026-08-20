@@ -73,11 +73,15 @@ describe("buildActiveMovieAccessMap", () => {
 
     const accessByMovieId = buildActiveMovieAccessMap(orders, movies);
 
-    expect(accessByMovieId.get("movie-active")).toEqual({
+    expect(accessByMovieId.get("movie-active")).toMatchObject({
+      accessTimeLabel: "Expires in 2d",
       progress: 25,
+      progressLabel: "25% watched",
       status: "expiring",
       statusLabel: "Expiring Soon",
       timeLabel: "2d left",
+      watchSummaryLabel: "25% watched • 30m of 2h",
+      watchTimeLabel: "30m of 2h",
     });
     expect(accessByMovieId.has("movie-expired")).toBe(false);
   });

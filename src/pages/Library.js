@@ -220,6 +220,9 @@ function LibraryMovieCard({ item }) {
   const expiredActionLabel = item.price
     ? `Watch Again ${formatPrice(item.price, item.currency)}`
     : "Watch Again";
+  const accessLabel = item.accessTimeLabel || item.timeLabel;
+  const watchLabel =
+    item.watchSummaryLabel || item.progressLabel || `${item.progress}% watched`;
 
   return (
     <article className={`library-card library-card--${item.status}`}>
@@ -241,7 +244,8 @@ function LibraryMovieCard({ item }) {
         <span className="library-card__badge">{item.statusLabel}</span>
         <span className="library-card__content">
           <strong>{item.title}</strong>
-          <small>{item.timeLabel}</small>
+          {accessLabel ? <small>{accessLabel}</small> : null}
+          {!isExpired ? <em>{watchLabel}</em> : null}
         </span>
         {isExpired ? (
           <Link className="library-card__action" to={`/movies/${item.slug}?watch=now`}>

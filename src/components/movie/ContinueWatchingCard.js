@@ -7,6 +7,9 @@ function ContinueWatchingCard({ item }) {
   const description =
     item.description ||
     "Pick up from the exact moment you stopped and keep your access active while it lasts.";
+  const accessLabel = item.accessTimeLabel || item.subtitle;
+  const watchLabel =
+    item.watchSummaryLabel || item.progressLabel || `${item.progress}% watched`;
 
   return (
     <article className="continue-card">
@@ -34,11 +37,16 @@ function ContinueWatchingCard({ item }) {
 
         <span className="continue-card__copy">
           <strong>{item.title}</strong>
-          <small>{item.subtitle}</small>
+          {accessLabel ? <small>{accessLabel}</small> : null}
+          <em>{watchLabel}</em>
         </span>
 
         <div className="continue-card__hover-panel">
           <strong>{item.title}</strong>
+          <div className="continue-card__hover-meta">
+            {accessLabel ? <span>{accessLabel}</span> : null}
+            <span>{watchLabel}</span>
+          </div>
           <p>{description}</p>
           <div className="continue-card__hover-actions">
             <Link className="continue-card__hover-primary" to={resumePath}>

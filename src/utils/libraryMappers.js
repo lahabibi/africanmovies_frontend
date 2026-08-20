@@ -3,6 +3,11 @@ export function mapLibraryItem(item = {}, now = new Date()) {
   const status = item.status || getStatus(expiryDate, now);
   const durationSeconds = Math.max(0, Number(item.duration) || 0) * 60;
   const currentTime = Math.max(0, Number(item.currentTime) || 0);
+  const watchedSeconds = item.playbackCompleted
+    ? durationSeconds || currentTime
+    : durationSeconds
+      ? Math.min(currentTime, durationSeconds)
+      : currentTime;
   const progress = item.playbackCompleted
     ? 100
     : durationSeconds
@@ -32,7 +37,15 @@ export function mapLibraryItem(item = {}, now = new Date()) {
       startWatch: item.startWatch === true,
       status,
     }),
+    accessTimeLabel: getAccessTimeLabel({ expiryDate, now, status }),
     progress,
+    progressLabel: `${progress}% watched`,
+    watchTimeLabel: getWatchTimeLabel({ durationSeconds, watchedSeconds }),
+    watchSummaryLabel: getWatchSummaryLabel({
+      durationSeconds,
+      progress,
+      watchedSeconds,
+    }),
     playbackCompleted: item.playbackCompleted === true,
   };
 }
@@ -60,6 +73,32 @@ function getTimeLabel({ expiryDate, isCompleted, now, startWatch, status }) {
   return `${formatDuration(expiryDate.getTime() - now.getTime())} left`;
 }
 
+function getAccessTimeLabel({ expiryDate, now, status }) {
+  if (status === "expired") {
+    return `Expired ${formatElapsed(expiryDate, now)} ago`;
+  }
+
+  if (!expiryDate) return "Access active";
+
+  return `Expires in ${formatDuration(expiryDate.getTime() - now.getTime())}`;
+}
+
+function getWatchSummaryLabel({ durationSeconds, progress, watchedSeconds }) {
+  const watchTimeLabel = getWatchTimeLabel({ durationSeconds, watchedSeconds });
+
+  return watchTimeLabel
+    ? `${progress}% watched • ${watchTimeLabel}`
+    : `${progress}% watched`;
+}
+
+function getWatchTimeLabel({ durationSeconds, watchedSeconds }) {
+  if (!durationSeconds) {
+    return watchedSeconds ? `${formatSeconds(watchedSeconds)} watched` : "";
+  }
+
+  return `${formatSeconds(watchedSeconds)} of ${formatSeconds(durationSeconds)}`;
+}
+
 function formatElapsed(date, now) {
   if (!date) return "recently";
   return formatDuration(now.getTime() - date.getTime());
@@ -74,4 +113,16 @@ function formatDuration(milliseconds) {
   if (days) return hours ? `${days}d ${hours}h` : `${days}d`;
   if (hours) return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
   return `${minutes}m`;
+}
+
+function formatSeconds(seconds) {
+  const totalMinutes = Math.max(
+    seconds > 0 ? 1 : 0,
+    Math.round(Math.max(0, seconds) / 60),
+  );
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (!hours) return `${minutes}m`;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }

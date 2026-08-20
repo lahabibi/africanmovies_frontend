@@ -2112,6 +2112,17 @@
   white-space: nowrap;
 }
 
+.continue-card__copy em {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .continue-card__track {
   position: absolute;
   right: 17px;
@@ -2154,6 +2165,25 @@
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.continue-card__hover-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.continue-card__hover-meta span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continue-card__hover-meta span:first-child {
+  color: var(--color-blue);
 }
 
 .continue-card__hover-panel p {
@@ -4018,6 +4048,17 @@
   color: #25e681;
   font-size: 13px;
   font-weight: 600;
+}
+
+.library-card__content em {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .library-card--expiring .library-card__content small {

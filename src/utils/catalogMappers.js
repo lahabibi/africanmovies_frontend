@@ -288,7 +288,11 @@ function buildContinueWatching(orders, movies) {
         purchaseStatus: "paid_active",
         status,
         statusLabel: status === "expiring" ? "Expiring Soon" : "",
-        subtitle: access.timeLabel || `${movie.duration} left`,
+        subtitle: access.accessTimeLabel || access.timeLabel || "",
+        accessTimeLabel: access.accessTimeLabel || access.timeLabel || "",
+        progressLabel: access.progressLabel,
+        watchTimeLabel: access.watchTimeLabel,
+        watchSummaryLabel: access.watchSummaryLabel,
         thumbnail: movie.thumbnail,
         accessExpiresAt: order.expiryDate,
       };
@@ -323,13 +327,32 @@ function mapOrderAccess(order, movie) {
   const isExpiringSoon =
     millisecondsLeft > 0 && millisecondsLeft <= ACCESS_EXPIRING_SOON_MS;
   const progress = getWatchProgress(order, movie);
+  const currentTime = toNumber(order?.currentTime, 0);
+  const durationSeconds = (movie?.durationMinutes || 0) * 60;
+  const watchedSeconds =
+    order?.playbackCompleted === true
+      ? durationSeconds || currentTime
+      : durationSeconds
+        ? Math.min(currentTime, durationSeconds)
+        : currentTime;
+  const accessTimeLabel = expiryDate
+    ? `Expires in ${formatTimeUntil(expiryDate)}`
+    : "";
 
   return {
     ...(order?.playbackCompleted === true ? { completed: true } : {}),
     progress,
+    progressLabel: `${progress}% watched`,
     status: isExpiringSoon ? "expiring" : "active",
     statusLabel: isExpiringSoon ? "Expiring Soon" : "Active",
     timeLabel: expiryDate ? `${formatTimeUntil(expiryDate)} left` : "",
+    accessTimeLabel,
+    watchTimeLabel: getWatchTimeLabel({ durationSeconds, watchedSeconds }),
+    watchSummaryLabel: getWatchSummaryLabel({
+      durationSeconds,
+      progress,
+      watchedSeconds,
+    }),
   };
 }
 
@@ -363,6 +386,34 @@ function formatTimeUntil(date) {
   }
 
   return `${minutes}m`;
+}
+
+function getWatchSummaryLabel({ durationSeconds, progress, watchedSeconds }) {
+  const watchTimeLabel = getWatchTimeLabel({ durationSeconds, watchedSeconds });
+
+  return watchTimeLabel
+    ? `${progress}% watched • ${watchTimeLabel}`
+    : `${progress}% watched`;
+}
+
+function getWatchTimeLabel({ durationSeconds, watchedSeconds }) {
+  if (!durationSeconds) {
+    return watchedSeconds ? `${formatSeconds(watchedSeconds)} watched` : "";
+  }
+
+  return `${formatSeconds(watchedSeconds)} of ${formatSeconds(durationSeconds)}`;
+}
+
+function formatSeconds(seconds) {
+  const totalMinutes = Math.max(
+    seconds > 0 ? 1 : 0,
+    Math.round(Math.max(0, seconds) / 60),
+  );
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (!hours) return `${minutes}m`;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 function formatDuration(duration) {
