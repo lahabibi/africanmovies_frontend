@@ -7,6 +7,10 @@ const pageLabels = {
     title: "New Releases",
     breadcrumb: ["home", "movies", "new releases"],
   },
+  free: {
+    title: "Free to Watch",
+    breadcrumb: ["home", "movies", "free to watch"],
+  },
 };
 
 export function getMoviesPageConfig(searchParams) {
@@ -38,6 +42,13 @@ export function getMoviesPageConfig(searchParams) {
     return {
       ...pageLabels.newReleases,
       filter: { type: "section", value: "new-releases" },
+    };
+  }
+
+  if (section === "free") {
+    return {
+      ...pageLabels.free,
+      filter: { type: "section", value: "free" },
     };
   }
 

@@ -40,10 +40,14 @@ function AllMovies() {
   const isNewReleasesPage =
     pageConfig.filter.type === "section" &&
     pageConfig.filter.value === "new-releases";
+  const isFreeMoviesPage =
+    pageConfig.filter.type === "section" && pageConfig.filter.value === "free";
   const isGenrePage = pageConfig.filter.type === "genre";
   const isLanguagePage = pageConfig.filter.type === "language";
   const isAllMoviesPage = pageConfig.filter.type === "all";
-  const allMoviesQuery = useMovies({ enabled: isAllMoviesPage });
+  const allMoviesQuery = useMovies({
+    enabled: isAllMoviesPage || isFreeMoviesPage,
+  });
   const latestMoviesQuery = useLatestMovies(120, {
     enabled: isNewReleasesPage,
   });
@@ -78,8 +82,11 @@ function AllMovies() {
         : isLanguagePage
           ? languageMoviesQuery.data || []
           : allMoviesQuery.data || [];
+    const visibleMovies = isFreeMoviesPage
+      ? apiMovies.filter((movie) => movie.isFree)
+      : apiMovies;
 
-    return apiMovies.map((movie, index) => ({
+    return visibleMovies.map((movie, index) => ({
       ...movie,
       sortOrder: index,
     }));
@@ -88,6 +95,7 @@ function AllMovies() {
     genreMoviesQuery.data,
     isGenrePage,
     isLanguagePage,
+    isFreeMoviesPage,
     isNewReleasesPage,
     languageMoviesQuery.data,
     latestMoviesQuery.data,
@@ -197,7 +205,11 @@ function AllMovies() {
                   ? "Titles unavailable"
                   : `${sortedMovies.length} titles`}
             </strong>
-            <span>Movies you purchased are marked on the poster.</span>
+            <span>
+              {isFreeMoviesPage
+                ? "Free titles can be claimed and watched from the poster."
+                : "Movies you purchased are marked on the poster."}
+            </span>
           </div>
 
           {isPageLoading ? <MoviesGridSkeleton /> : null}

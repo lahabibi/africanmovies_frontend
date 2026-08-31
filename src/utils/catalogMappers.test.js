@@ -88,6 +88,30 @@ describe("buildActiveMovieAccessMap", () => {
 });
 
 describe("completed playback catalog state", () => {
+  test("builds a dedicated free movies row from home catalog data", () => {
+    const result = mapHomeData({
+      movies: [
+        {
+          _id: "paid-movie",
+          isFree: false,
+          title: "Paid Story",
+        },
+        {
+          _id: "free-movie",
+          isFree: true,
+          title: "Free Story",
+        },
+      ],
+    });
+
+    expect(result.freeMovies).toHaveLength(1);
+    expect(result.freeMovies[0]).toMatchObject({
+      id: "free-movie",
+      isFree: true,
+      title: "Free Story",
+    });
+  });
+
   test("keeps active access while removing completed titles from Continue Watching", () => {
     const result = mapHomeData({
       movies: [

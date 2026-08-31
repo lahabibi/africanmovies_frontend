@@ -190,6 +190,7 @@ export function mapHomeData(rawHome = {}) {
     homeHero,
     continueWatching: buildContinueWatching(orders, movies),
     trendingMovies: moviesWithAccess.slice(0, 12),
+    freeMovies: moviesWithAccess.filter((movie) => movie.isFree),
     genreRows: buildGenreRows(genres, moviesWithAccess),
     longevity: rawHome.longevity || null,
     orders,

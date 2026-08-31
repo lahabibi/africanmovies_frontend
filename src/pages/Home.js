@@ -30,6 +30,7 @@ function Home() {
       ? `content-row--continue-sparse content-row--continue-count-${resolvedContinueWatching.length}`
       : "";
   const resolvedGenreRows = homeCatalog?.genreRows || [];
+  const resolvedFreeMovies = homeCatalog?.freeMovies || [];
   const showHeroSkeleton = isHomeLoading && !homeCatalog;
   const showLatestMoviesSkeleton =
     isLatestMoviesLoading && latestMovies.length === 0;
@@ -97,6 +98,14 @@ function Home() {
           )}
 
           <FeatureStrip items={serviceHighlights} />
+
+          {resolvedFreeMovies.length > 0 ? (
+            <ContentRow title="Free to Watch" viewAllTo="/movies?section=free">
+              {resolvedFreeMovies.map((movie) => (
+                <MoviePosterCard key={movie.id} movie={movie} />
+              ))}
+            </ContentRow>
+          ) : null}
 
           {resolvedGenreRows.length > 0
             ? resolvedGenreRows.map((row) => (
